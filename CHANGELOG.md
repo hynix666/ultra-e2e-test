@@ -22,3 +22,4 @@ Released sections are written by release-please from Conventional Commit titles;
 
 End-to-end test of the release flow.
 Patch-release test.
+Second patch-release test.
