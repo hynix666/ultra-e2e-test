@@ -1,12 +1,14 @@
 # release-please keeps an open "release" pull request that collects every Conventional Commit on
 # main since the last release. Merging it tags the release and updates CHANGELOG.md.
 #
-# Two settings a new repository does not inherit:
-#   - GitHub Actions must be allowed to create pull requests, and the repository variable
-#     RELEASE_ENABLED must be true. `node scripts/configure-github.mjs` sets both.
-#   - A pull request opened with GITHUB_TOKEN starts no workflow runs, so the required `verify`
-#     check never reports on it. Store a fine-grained token (contents and pull requests: write) as
-#     the RELEASE_PLEASE_TOKEN secret and the release pull request is checked like any other.
+# Off until the repository variable RELEASE_ENABLED is true, and it needs GitHub Actions to be allowed
+# to create pull requests: `node scripts/configure-github.mjs` sets both after initialization.
+#
+# A pull request opened or updated with GITHUB_TOKEN starts no workflow runs, so the required `verify`
+# check would never report on the release pull request, and it could never merge. workflow_dispatch is
+# the documented exception, so the job below dispatches verify on the release branch; that run reports
+# `verify` on the branch head, which is the commit the pull request needs. No personal token is
+# required. Set a RELEASE_PLEASE_TOKEN secret only if release events must trigger other workflows.
 name: release
 
 on:
@@ -31,9 +33,19 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write # dispatch verify on the release branch
     steps:
-      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      # The branch name reaches the shell through env, never interpolated into the script.
+      - name: Dispatch verify on the release pull request
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
+        run: gh workflow run verify.yml --repo "$GITHUB_REPOSITORY" --ref "$BRANCH"
