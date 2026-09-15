@@ -1,0 +1,39 @@
+# release-please keeps an open "release" pull request that collects every Conventional Commit on
+# main since the last release. Merging it tags the release and updates CHANGELOG.md.
+#
+# Two settings a new repository does not inherit:
+#   - GitHub Actions must be allowed to create pull requests, and the repository variable
+#     RELEASE_ENABLED must be true. `node scripts/configure-github.mjs` sets both.
+#   - A pull request opened with GITHUB_TOKEN starts no workflow runs, so the required `verify`
+#     check never reports on it. Store a fine-grained token (contents and pull requests: write) as
+#     the RELEASE_PLEASE_TOKEN secret and the release pull request is checked like any other.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    # Opt-in, like CodeQL and Pages. GitHub copies a template's content as the first commit of a new
+    # repository and runs its workflows before anyone initializes it, so a release job that ran by
+    # default would release the uninitialized template. It stays off until configure-github.mjs runs.
+    if: vars.RELEASE_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

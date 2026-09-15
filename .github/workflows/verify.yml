@@ -1,0 +1,179 @@
+# The one required status check.
+#
+# Every job below feeds the final `verify` job, and branch protection names only that job. A
+# required check is matched by job name, so adding, renaming or removing a module job never means
+# editing protection rules — and never leaves pull requests waiting for a check that no longer runs.
+# A new job must also be listed under `verify.needs`, or it is not part of the gate.
+#
+# Third-party actions are pinned to a commit SHA with the version in a trailing comment. A tag can
+# be repointed at different code with no diff in this repository (tj-actions/changed-files, March
+# 2025); a SHA cannot. Dependabot bumps SHA and comment together, and scripts/check-hygiene.mjs
+# fails the build on an unpinned `uses:`.
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  # Superseded pull request runs are cancelled; a run on main is a record of main and is not.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  chassis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: Repository hygiene
+        run: node scripts/check-hygiene.mjs
+      - name: Chassis tests
+        run: node --test "test/*.test.mjs"
+      # ultra:begin template
+      - name: Template tests
+        run: node --test "template/*.test.mjs"
+      # ultra:end template
+
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-actionlint
+      - run: actionlint -color
+
+  # ultra:begin go-service
+  go-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/api-go
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: services/api-go/go.mod
+          cache-dependency-path: services/api-go/go.mod
+      - name: go.mod is tidy
+        run: go mod tidy -diff
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then echo "Not gofmt-formatted:"; echo "$unformatted"; exit 1; fi
+      - run: go vet ./...
+      - run: go test -race ./...
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.13.2
+          working-directory: services/api-go
+      - name: Container image builds
+        run: docker build --tag api-go:ci .
+  # ultra:end go-service
+
+  # ultra:begin ts-service
+  ts-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/api-ts
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: services/api-ts/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - name: Container image builds
+        run: docker build --tag api-ts:ci .
+  # ultra:end ts-service
+
+  # ultra:begin web
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+  # ultra:end web
+
+  # ultra:begin architecture
+  architecture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: architecture
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: architecture/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+  # ultra:end architecture
+
+  verify:
+    if: always()
+    needs:
+      - chassis
+      - actionlint
+      # ultra:begin go-service
+      - go-service
+      # ultra:end go-service
+      # ultra:begin ts-service
+      - ts-service
+      # ultra:end ts-service
+      # ultra:begin web
+      - web
+      # ultra:end web
+      # ultra:begin architecture
+      - architecture
+      # ultra:end architecture
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # `if: always()` makes this job report even when a dependency failed or was cancelled, so the
+      # check is red rather than missing. It is green only when every dependency succeeded.
+      - name: Every job succeeded
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$RESULTS" | jq -e 'to_entries | all(.value.result == "success")' > /dev/null

@@ -1,0 +1,70 @@
+# Report-only secret scanning of commits with gitleaks.
+#
+# A FINDING does not fail the job: an untuned scanner that goes red on day one teaches everyone to
+# ignore it. The job DOES fail when the scan could not run, because a scanner that errored must not
+# read as "nothing found". Findings are written, redacted, to the job summary.
+#
+# GitHub secret scanning and push protection are the blocking layer (SECURITY.md); this is the
+# second opinion that also reads history.
+name: security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      # The MIT-licensed CLI, not gitleaks-action (proprietary since v2, and it wants write access).
+      # Pinned by version AND by the SHA-256 in the release's checksums file. Bump both together.
+      GITLEAKS_VERSION: "8.30.1"
+      GITLEAKS_SHA256: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install gitleaks (checksum-verified)
+        run: |
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -fsSL -o "$tarball" "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
+          echo "${GITLEAKS_SHA256}  ${tarball}" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+
+      # A pull request scans its own commits; push, schedule and manual runs scan all history.
+      # --exit-code 3 separates "found something" from gitleaks' own errors (exit 1).
+      - name: Scan
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          args=(git --no-banner --redact --exit-code 3 --report-format json --report-path gitleaks.json)
+          if [ -n "$BASE_SHA" ]; then args+=("--log-opts=${BASE_SHA}..${HEAD_SHA}"); fi
+          set +e
+          ./gitleaks "${args[@]}" .
+          code=$?
+          set -e
+          if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then
+            echo "### gitleaks could not run (exit $code)" >> "$GITHUB_STEP_SUMMARY"
+            exit "$code"
+          fi
+          count=$(jq 'length' gitleaks.json)
+          {
+            echo "### gitleaks: ${count} finding(s), report-only"
+            if [ "$count" -gt 0 ]; then
+              echo ""
+              echo "| Rule | File | Line | Commit |"
+              echo "|---|---|---|---|"
+              jq -r '.[] | "| \(.RuleID) | \(.File) | \(.StartLine) | \(.Commit[0:7]) |"' gitleaks.json | head -100
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

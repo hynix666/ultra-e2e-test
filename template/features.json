@@ -1,0 +1,41 @@
+{
+  "$comment": "Read by template/init.mjs, and deleted with it. A feature's paths are deleted when it is not selected; content inside shared files is selected with marker lines instead. See template/README.md.",
+  "identity": {
+    "owner": "hynix666",
+    "repo": "ULTRA-TEMPLATE",
+    "name": "ultra-template"
+  },
+  "templateOnly": ["template", ".github/workflows/template-test.yml"],
+  "features": {
+    "go-service": {
+      "summary": "Go HTTP service: Clean Architecture layers, standard library only, import rules enforced by a test",
+      "paths": ["services/api-go"]
+    },
+    "ts-service": {
+      "summary": "TypeScript HTTP service on Node 24: pure domain core, import boundaries checked on every file",
+      "paths": ["services/api-ts"]
+    },
+    "web": {
+      "summary": "React + Vite single-page app with Vitest",
+      "paths": ["apps/web"]
+    },
+    "architecture": {
+      "summary": "LikeC4 architecture-as-code: model rules run as tests, optional GitHub Pages site",
+      "paths": ["architecture", ".github/workflows/architecture.yml"]
+    },
+    "release": {
+      "summary": "release-please: release pull requests, tags and CHANGELOG from Conventional Commits",
+      "paths": [".github/workflows/release.yml", "release-please-config.json", ".release-please-manifest.json"]
+    },
+    "devcontainer": {
+      "summary": "Dev Container carrying the toolchains the selected features need",
+      "paths": [".devcontainer"]
+    }
+  },
+  "presets": {
+    "minimal": [],
+    "go-api": ["go-service", "architecture", "release", "devcontainer"],
+    "fullstack-ts": ["ts-service", "web", "architecture", "release", "devcontainer"],
+    "all": ["go-service", "ts-service", "web", "architecture", "release", "devcontainer"]
+  }
+}
