@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/controller/httpapi"
-	"github.com/hynix666/ultra-template/services/api-go/internal/repo/memory"
-	"github.com/hynix666/ultra-template/services/api-go/internal/usecase"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/controller/httpapi"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/repo/memory"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/usecase"
 )
 
 type task struct {

@@ -18,15 +18,11 @@ coverage/
 *.local
 *.local.*
 
-# ultra:begin go-service
 # Go build output.
 services/api-go/bin/
-# ultra:end go-service
 
-# ultra:begin architecture
 # LikeC4 exports.
 architecture/png/
-# ultra:end architecture
 
 # Editors and operating systems.
 .DS_Store

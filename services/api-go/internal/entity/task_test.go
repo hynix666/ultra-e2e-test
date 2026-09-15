@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/entity"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/entity"
 )
 
 var now = time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)

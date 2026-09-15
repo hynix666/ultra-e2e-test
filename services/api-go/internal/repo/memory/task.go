@@ -7,7 +7,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/entity"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/entity"
 )
 
 // TaskRepository keeps tasks in insertion order behind a read-write mutex.

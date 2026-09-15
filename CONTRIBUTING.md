@@ -6,9 +6,7 @@
 2. Make the change, with a test for any behaviour it adds or fixes.
 3. Run `node scripts/verify.mjs`. It runs the same checks as CI, so red here means red there.
 4. Open a pull request whose **title** follows [Conventional Commits](https://www.conventionalcommits.org/): `feat: add task search`, `fix(api-go): reject empty titles`. Pull requests are squash-merged, so the title becomes the commit message on `main`.
-<!-- ultra:begin release -->
 5. The title's type sets the next version: `fix` makes a patch release, `feat` a minor release, and `!` or a `BREAKING CHANGE:` footer a major release.
-<!-- ultra:end release -->
 
 Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`.
 

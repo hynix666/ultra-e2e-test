@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/config"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/config"
 )
 
 func env(values map[string]string) func(string) string {

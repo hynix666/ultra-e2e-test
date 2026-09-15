@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/entity"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/entity"
 )
 
 // maxBodyBytes bounds a request body; a larger one is refused before it is decoded.

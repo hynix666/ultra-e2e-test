@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/hynix666/ultra-template/services/api-go/internal/entity"
-	"github.com/hynix666/ultra-template/services/api-go/internal/repo/memory"
-	"github.com/hynix666/ultra-template/services/api-go/internal/usecase"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/entity"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/repo/memory"
+	"github.com/hynix666/ultra-e2e-test/services/api-go/internal/usecase"
 )
 
 // The compiler checks the port is satisfied; a failing build is the test.

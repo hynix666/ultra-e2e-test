@@ -17,12 +17,8 @@ Every service keeps four roles:
 
 The dependency rule is enforced by a test in the service's own toolchain, over every production file, and each rule has a test showing it can fail:
 
-<!-- ultra:begin go-service -->
 - `services/api-go/internal/architecture_test.go` parses every file's imports with `go/parser` and fails `go test` on a forbidden one.
-<!-- ultra:end go-service -->
-<!-- ultra:begin ts-service -->
 - `services/api-ts/scripts/check-boundaries.mjs` gives each layer an allowlist of what it may import; `npm run verify` runs it before type-checking.
-<!-- ultra:end ts-service -->
 
 Test files are exempt: a test may wire real implementations together.
 

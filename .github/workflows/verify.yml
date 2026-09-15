@@ -41,10 +41,6 @@ jobs:
         run: node scripts/check-hygiene.mjs
       - name: Chassis tests
         run: node --test "test/*.test.mjs"
-      # ultra:begin template
-      - name: Template tests
-        run: node --test "template/*.test.mjs"
-      # ultra:end template
 
   actionlint:
     runs-on: ubuntu-latest
@@ -56,7 +52,6 @@ jobs:
       - uses: ./.github/actions/setup-actionlint
       - run: actionlint -color
 
-  # ultra:begin go-service
   go-service:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -85,9 +80,7 @@ jobs:
           working-directory: services/api-go
       - name: Container image builds
         run: docker build --tag api-go:ci .
-  # ultra:end go-service
 
-  # ultra:begin ts-service
   ts-service:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -107,9 +100,7 @@ jobs:
       - run: npm run verify
       - name: Container image builds
         run: docker build --tag api-ts:ci .
-  # ultra:end ts-service
 
-  # ultra:begin web
   web:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -127,9 +118,7 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run verify
-  # ultra:end web
 
-  # ultra:begin architecture
   architecture:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -147,25 +136,16 @@ jobs:
           cache-dependency-path: architecture/package-lock.json
       - run: npm ci
       - run: npm run verify
-  # ultra:end architecture
 
   verify:
     if: always()
     needs:
       - chassis
       - actionlint
-      # ultra:begin go-service
       - go-service
-      # ultra:end go-service
-      # ultra:begin ts-service
       - ts-service
-      # ultra:end ts-service
-      # ultra:begin web
       - web
-      # ultra:end web
-      # ultra:begin architecture
       - architecture
-      # ultra:end architecture
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

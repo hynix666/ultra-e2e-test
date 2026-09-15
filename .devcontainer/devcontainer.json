@@ -1,12 +1,10 @@
 {
-  "name": "ultra-template",
+  "name": "ultra-e2e-test",
   // A general base image; each toolchain is a Dev Container Feature pinned to a version, which
   // Dependabot's devcontainers updater keeps current.
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
-    // ultra:begin go-service
     "ghcr.io/devcontainers/features/go:1": { "version": "1.26" },
-    // ultra:end go-service
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:2": { "version": "24" }
   },
@@ -14,12 +12,8 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        // ultra:begin go-service
         "golang.go",
-        // ultra:end go-service
-        // ultra:begin architecture
         "likec4.likec4-vscode",
-        // ultra:end architecture
         "editorconfig.editorconfig",
         "github.vscode-github-actions"
       ]
