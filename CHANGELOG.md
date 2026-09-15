@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 Released sections are written by release-please from Conventional Commit titles; do not edit them by hand.
 
+## [1.0.2](https://github.com/hynix666/ultra-e2e-test/compare/v1.0.1...v1.0.2) (2026-09-15)
+
+
+### Bug Fixes
+
+* exercise a second patch release ([#8](https://github.com/hynix666/ultra-e2e-test/issues/8)) ([1ae31b0](https://github.com/hynix666/ultra-e2e-test/commit/1ae31b0bbf0816c42a08bbdce69a057eb424c298))
+
 ## [1.0.1](https://github.com/hynix666/ultra-e2e-test/compare/v1.0.0...v1.0.1) (2026-09-15)
 
 
