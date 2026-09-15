@@ -42,9 +42,11 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      # The branch name reaches the shell through env, never interpolated into the script.
+      # The branch name reaches the shell through env, never interpolated into the script. Guarded on
+      # `pr` itself, not `prs_created`: release-please can report prs_created without setting `pr`, and
+      # fromJSON of an empty string fails the job on every push that has nothing to release.
       - name: Dispatch verify on the release pull request
-        if: steps.release.outputs.prs_created == 'true'
+        if: steps.release.outputs.pr != ''
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ fromJSON(steps.release.outputs.pr).headBranchName }}
