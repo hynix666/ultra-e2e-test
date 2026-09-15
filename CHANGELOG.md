@@ -5,3 +5,5 @@ All notable changes to this project are documented here. The format follows [Kee
 Released sections are written by release-please from Conventional Commit titles; do not edit them by hand.
 
 ## [Unreleased]
+
+End-to-end test of the release flow.
