@@ -1,13 +1,13 @@
 # Checks the pull request TITLE against Conventional Commits. Pull requests are squash-merged, so
 # the title becomes the commit on main — and, with release-please, decides the next version.
 #
-# pull_request_target runs the workflow from the base branch, which is what lets it check pull
-# requests from forks. That trigger is safe here only because this job never checks out or runs
-# the pull request's code and its token is read-only. Both must stay true.
+# It runs on pull_request, not pull_request_target: a check that only reads the title needs none of
+# the base repository's privileges, and pull_request_target would run with them on every fork's pull
+# request (zizmor: dangerous-triggers). A fork's pull request runs with a read-only token either way.
 name: pr-title
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, edited, reopened, synchronize]
 
 permissions:

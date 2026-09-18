@@ -6,6 +6,7 @@ What is written down about this repository, and how to keep it true.
 |---|---|
 | [Architecture decision records](adr/README.md) | Why the structure is what it is: one record per decision, superseded rather than rewritten |
 | [Growing the CI](growing-the-ci.md) | What to change when CI gets slow — path filters, shared steps, a merge queue — without breaking the single required check |
+| [Toolchain updates](toolchain-updates.md) | Every pinned version, what keeps it current, and how to move the ones nothing updates |
 | [AGENTS.md](../AGENTS.md) | How to work here — the invariants the build enforces, the architecture, the conventions. Agents and people read the same file |
 | Each module's `README.md` | What that module is and how to run it. Documentation about code lives next to the code |
 

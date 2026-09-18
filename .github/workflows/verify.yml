@@ -54,6 +54,21 @@ jobs:
       - uses: ./.github/actions/setup-actionlint
       - run: actionlint -color
 
+  # zizmor audits the workflows for security rather than syntax: template injection, dangerous
+  # triggers, persisted credentials, cache poisoning. With a token it also confirms each pinned SHA
+  # belongs to the repository it names, so an impostor commit from a fork cannot pass as a pin.
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-zizmor
+      - run: zizmor .
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   go-service:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -89,6 +104,7 @@ jobs:
       - name: Container image starts and answers
         run: |
           docker build --tag api-go:ci .
+          trap 'docker rm --force api-go > /dev/null 2>&1 || true' EXIT
           docker run --detach --name api-go --publish 8080:8080 api-go:ci
           for _ in $(seq 1 30); do
             if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
@@ -120,6 +136,7 @@ jobs:
       - name: Container image starts and answers
         run: |
           docker build --tag api-ts:ci .
+          trap 'docker rm --force api-ts > /dev/null 2>&1 || true' EXIT
           docker run --detach --name api-ts --publish 8080:8080 api-ts:ci
           for _ in $(seq 1 30); do
             if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
@@ -186,6 +203,7 @@ jobs:
       - name: Container image starts and answers
         run: |
           docker build --tag api-py:ci .
+          trap 'docker rm --force api-py > /dev/null 2>&1 || true' EXIT
           docker run --detach --name api-py --publish 8080:8080 api-py:ci
           for _ in $(seq 1 30); do
             if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
@@ -253,6 +271,7 @@ jobs:
     needs:
       - chassis
       - actionlint
+      - zizmor
       - go-service
       - ts-service
       - mcp-server

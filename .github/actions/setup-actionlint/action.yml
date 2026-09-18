@@ -1,5 +1,5 @@
 name: Set up actionlint
-description: Installs a checksum-verified actionlint binary and puts it on PATH.
+description: Installs a checksum-verified actionlint binary into /usr/local/bin.
 runs:
   using: composite
   steps:
@@ -15,7 +15,7 @@ runs:
         mkdir -p "$dir"
         cd "$dir"
         tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
-        curl -fsSL -o "$tarball" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+        curl -fsSL --retry 3 --retry-all-errors -o "$tarball" "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
         echo "${ACTIONLINT_SHA256}  ${tarball}" | sha256sum -c -
         tar -xzf "$tarball" actionlint
-        echo "$dir" >> "$GITHUB_PATH"
+        sudo install -m 0755 actionlint /usr/local/bin/actionlint

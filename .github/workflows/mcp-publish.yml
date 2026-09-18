@@ -3,17 +3,23 @@
 # is pushed with this run's GITHUB_TOKEN, and the registry trusts GitHub's OIDC identity for the
 # io.github.<owner>/ namespace.
 #
+# The image is built for linux/amd64 and linux/arm64, each on a native runner, and published as one tag.
+# An MCP server usually runs on the developer's own machine, and an amd64-only image runs emulated on an
+# Apple Silicon Mac, if at all.
+#
 # Off until the repository variable MCP_PUBLISH_ENABLED is set to true; services/mcp-server/README.md
 # lists the one-time steps first.
 name: mcp-publish
 
 on:
-  # A release that release-please creates with GITHUB_TOKEN starts no workflow by itself, but the
-  # release workflow finishing does. So this listens for that, and publishes only when the commit it
-  # ran on carries a version tag — most runs of `release` create nothing, and this then does nothing.
-  workflow_run:
-    workflows: [release]
-    types: [completed]
+  # release.yml calls this once release-please has created a release: a release made with GITHUB_TOKEN
+  # starts no workflow by itself. Running it by hand publishes a version released earlier.
+  workflow_call:
+    inputs:
+      version:
+        description: The release to publish, such as v1.2.0.
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       version:
@@ -24,85 +30,103 @@ permissions:
   contents: read
 
 jobs:
-  publish:
-    # workflow_run runs with this repository's permissions whatever triggered it, so it only proceeds
-    # for a successful push to this repository's default branch. The repository check matters: a fork
-    # can name its own branch `main`, so the branch name alone proves nothing.
-    if: >-
-      vars.MCP_PUBLISH_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_repository.full_name == github.repository &&
-      github.event.workflow_run.head_branch == github.event.repository.default_branch))
+  release:
+    if: vars.MCP_PUBLISH_ENABLED == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
     steps:
-      # The release is found through the API and only its tag is checked out — never the commit the
-      # workflow_run event names. A tag can be created only by someone with write access; the event's
-      # commit is exactly what a privileged job must not run on trust (Scorecard: Dangerous-Workflow).
-      - name: Find the release to publish
+      # Every later job checks out this tag. A tag can be created only by someone with write access.
+      - name: Check the release exists
         id: version
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT: ${{ inputs.version }}
-          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if [ -n "$INPUT" ]; then
-            TAG="v${INPUT#v}"
-            if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
-              echo "::error::There is no tag $TAG. Publish a version that has been released."
-              exit 1
-            fi
-          else
-            TAG="$(gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
-              --jq '[.[] | select(.commit.sha == env.SHA) | .name | select(startswith("v"))] | first // ""')"
-            if [ -z "$TAG" ]; then
-              echo "No release was created on this commit; nothing to publish."
-              exit 0
-            fi
+          TAG="v${INPUT#v}"
+          if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+            echo "::error::There is no tag $TAG. Publish a version that has been released."
+            exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
+  image:
+    needs: release
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: steps.version.outputs.tag != ''
         with:
-          ref: refs/tags/${{ steps.version.outputs.tag }}
+          ref: refs/tags/${{ needs.release.outputs.tag }}
           persist-credentials: false
 
-      - name: Build and push the image
-        if: steps.version.outputs.version != ''
+      - name: Build and push the ${{ matrix.arch }} image
         working-directory: services/mcp-server
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: ${{ needs.release.outputs.version }}
+          ARCH: ${{ matrix.arch }}
           OWNER: ${{ github.repository_owner }}
           GH_TOKEN: ${{ github.token }}
         run: |
           # Image references must be lowercase; a GitHub owner need not be.
-          IMAGE="ghcr.io/${OWNER,,}/ultra-e2e-test-mcp-server:$VERSION"
+          IMAGE="ghcr.io/${OWNER,,}/ultra-e2e-test-mcp-server:$VERSION-$ARCH"
           echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           docker build --tag "$IMAGE" .
           docker push "$IMAGE"
-          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+  publish:
+    needs: [release, image]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.release.outputs.version }}
+      OWNER: ${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ needs.release.outputs.tag }}
+          persist-credentials: false
+
+      - name: Publish both images under one tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IMAGE="ghcr.io/${OWNER,,}/ultra-e2e-test-mcp-server:$VERSION"
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          # An index naming the two images: a client pulls the one built for its own architecture.
+          docker buildx imagetools create --tag "$IMAGE" "$IMAGE-amd64" "$IMAGE-arm64"
+          docker buildx imagetools inspect "$IMAGE"
 
       - name: Install mcp-publisher, checksum-verified
-        if: steps.version.outputs.version != ''
         run: |
-          curl -fsSL -o mcp-publisher.tar.gz \
+          curl -fsSL --retry 3 --retry-all-errors -o mcp-publisher.tar.gz \
             https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz
           echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  mcp-publisher.tar.gz" | sha256sum --check --strict
           tar -xzf mcp-publisher.tar.gz mcp-publisher
 
       - name: Publish server.json to the MCP Registry
-        if: steps.version.outputs.version != ''
         working-directory: services/mcp-server
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # The committed manifest names the image by pattern; publish the exact one just pushed.
+          IMAGE="ghcr.io/${OWNER,,}/ultra-e2e-test-mcp-server:$VERSION"
+          # The committed manifest names the image by pattern; publish the exact one just pushed. The
+          # registry reads the label from the linux/amd64 image in the index, which carries it like the other.
           jq --arg v "$VERSION" --arg image "$IMAGE" \
             '.version = $v | .packages[0].identifier = $image' server.json > server.tmp
           mv server.tmp server.json
