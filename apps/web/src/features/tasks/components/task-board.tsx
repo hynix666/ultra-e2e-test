@@ -1,20 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { errorMessage, LABELS, nextStatuses, parseTasks, type Status, type Task } from "./lib/tasks.ts";
+import { createTask, listTasks, moveTask } from "../api.ts";
+import { LABELS, nextStatuses, type Status, type Task } from "../model.ts";
 
-export function App() {
+export function TaskBoard() {
   const [tasks, setTasks] = useState<readonly Task[]>([]);
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  async function refresh(): Promise<void> {
-    const res = await fetch("/api/tasks");
-    if (!res.ok) throw new Error(await errorMessage(res));
-    setTasks(parseTasks(await res.json()));
-  }
-
   function run(action: () => Promise<void>): void {
     setError(null);
     action().catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+  }
+
+  async function refresh(): Promise<void> {
+    setTasks(await listTasks());
   }
 
   useEffect(() => run(refresh), []);
@@ -22,12 +21,7 @@ export function App() {
   function create(event: FormEvent): void {
     event.preventDefault();
     run(async () => {
-      const res = await fetch("/api/tasks", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-      if (!res.ok) throw new Error(await errorMessage(res));
+      await createTask(title);
       setTitle("");
       await refresh();
     });
@@ -35,19 +29,13 @@ export function App() {
 
   function move(task: Task, status: Status): void {
     run(async () => {
-      const res = await fetch(`/api/tasks/${encodeURIComponent(task.id)}/status`, {
-        method: "PATCH",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error(await errorMessage(res));
+      await moveTask(task.id, status);
       await refresh();
     });
   }
 
   return (
-    <main>
-      <h1>Tasks</h1>
+    <section>
       <form onSubmit={create}>
         <input
           aria-label="Task title"
@@ -72,6 +60,6 @@ export function App() {
           </li>
         ))}
       </ul>
-    </main>
+    </section>
   );
 }

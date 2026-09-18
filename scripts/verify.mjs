@@ -13,6 +13,7 @@
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { TASK_SERVICES } from "./check-contract.mjs";
 import { available, MODULES, presentModules, ROOT, run } from "./modules.mjs";
 
 const results = [];
@@ -26,6 +27,7 @@ function step(name, command, args, cwd = ROOT) {
 
 function chassis() {
   step("chassis: hygiene", "node", ["scripts/check-hygiene.mjs"]);
+  step("chassis: docs", "node", ["scripts/check-docs.mjs"]);
   const suites = ["test/*.test.mjs"];
   if (existsSync(join(ROOT, "template"))) suites.push("template/*.test.mjs");
   step("chassis: tests", "node", ["--test", ...suites]);
@@ -38,6 +40,22 @@ function nodeModule(module) {
     return;
   }
   step(`${module.id}: npm run verify`, "npm", ["run", "verify"], cwd);
+}
+
+function pythonModule(module) {
+  const cwd = join(ROOT, module.dir);
+  if (!available("uv", ["--version"])) {
+    record(`${module.id}: toolchain`, "fail", "uv is not on PATH; install uv (astral.sh/uv) or remove the module");
+    return;
+  }
+  // The lockfile is checked like go mod tidy -diff, and never rewritten: a plain `uv run` re-locks
+  // a stale uv.lock in place, so verify would pass locally on exactly the drift CI must refuse.
+  step(`${module.id}: uv.lock up to date`, "uv", ["lock", "--check"], cwd);
+  step(`${module.id}: ruff check`, "uv", ["run", "--frozen", "ruff", "check", "."], cwd);
+  step(`${module.id}: ruff format`, "uv", ["run", "--frozen", "ruff", "format", "--check", "."], cwd);
+  step(`${module.id}: mypy`, "uv", ["run", "--frozen", "mypy"], cwd);
+  step(`${module.id}: pytest`, "uv", ["run", "--frozen", "pytest"], cwd);
+  step(`${module.id}: check-boundaries`, "uv", ["run", "--frozen", "python", "scripts/check_boundaries.py"], cwd);
 }
 
 function goModule(module) {
@@ -75,7 +93,10 @@ chassis();
 for (const module of present) {
   if (requested.length > 0 && !requested.includes(module.id)) continue;
   if (module.toolchain === "go") goModule(module);
+  else if (module.toolchain === "python") pythonModule(module);
   else nodeModule(module);
+  // Each task service is also held to the one contract all of them share (ADR-0008).
+  if (TASK_SERVICES.includes(module.id)) step(`${module.id}: contract`, "node", ["scripts/check-contract.mjs", module.id]);
 }
 
 const icon = { pass: "✔", fail: "✘", skipped: "–" };

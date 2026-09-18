@@ -39,7 +39,10 @@ test("requests are validated at the boundary, with the same status codes as api-
   const base = await start(t);
   const cases: [string, string, string, string | undefined, number][] = [
     ["health", "GET", "/healthz", undefined, 200],
+    ["HEAD like GET", "HEAD", "/healthz", undefined, 200],
     ["blank title", "POST", "/api/tasks", '{"title":" "}', 422],
+    // null reads as empty, as in api-go and api-py and as a null status already did.
+    ["null title", "POST", "/api/tasks", '{"title":null}', 422],
     ["unknown field", "POST", "/api/tasks", '{"title":"x","admin":true}', 400],
     ["not JSON", "POST", "/api/tasks", "title=x", 400],
     ["null body", "POST", "/api/tasks", "null", 400],

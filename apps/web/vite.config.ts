@@ -8,6 +8,6 @@ export default defineConfig({
     proxy: { "/api": "http://localhost:8080" },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "scripts/**/*.test.ts"],
   },
 });

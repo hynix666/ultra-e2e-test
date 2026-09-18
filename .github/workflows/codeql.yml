@@ -18,7 +18,9 @@ permissions:
 
 jobs:
   analyze:
-    name: analyze (${{ matrix.language }})
+    # No `name:` here: a job skipped by `if` is reported before its matrix expands, so a name using
+    # matrix values would appear literally as "analyze (${{ matrix.language }})". GitHub's default
+    # matrix names ("analyze (go)") need no expression.
     if: vars.CODEQL_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -32,6 +34,7 @@ jobs:
           - actions
           - javascript-typescript
           - go
+          - python
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

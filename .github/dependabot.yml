@@ -75,6 +75,60 @@ updates:
         update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
+    directory: /services/mcp-server
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      mcp-server:
+        patterns: ["*"]
+    ignore:
+      # @types/node describes the Node that runs the code (.node-version), so it moves with it.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: /services/mcp-server
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      # The image's Node major follows .node-version, which CI and every module's engines use.
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: uv
+    directory: /services/api-py
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      api-py:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /services/api-py
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      # The image's Python minor follows .python-version, which uv and CI both read.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: npm
     directory: /apps/web
     schedule:
       interval: weekly
@@ -87,6 +141,21 @@ updates:
         patterns: ["*"]
     ignore:
       # Same reason as api-ts: @types/node moves with .node-version, never ahead of it.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: npm
+    directory: /packages/ts-library
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      ts-library:
+        patterns: ["*"]
+    ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
 

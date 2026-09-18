@@ -1,6 +1,6 @@
 # ADR-NNNN: Title in the imperative, stating the decision
 
-**Status:** Proposed | Accepted | Superseded by [ADR-NNNN](NNNN-title.md) · **Date:** YYYY-MM-DD
+**Status:** Proposed | Accepted | Superseded by ADR-NNNN (link it as `[ADR-NNNN](NNNN-title.md)` with the real number) · **Date:** YYYY-MM-DD
 
 ## Context
 

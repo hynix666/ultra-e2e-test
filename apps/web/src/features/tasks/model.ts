@@ -36,14 +36,3 @@ export function parseTasks(json: unknown): Task[] {
     return { id, title, status };
   });
 }
-
-/** The service's `{ "error": ... }` message when there is one, otherwise the status code. */
-export async function errorMessage(res: Response): Promise<string> {
-  try {
-    const body: unknown = await res.json();
-    if (typeof body === "object" && body !== null && "error" in body && typeof body.error === "string") return body.error;
-  } catch {
-    // Not JSON: fall through to the status code.
-  }
-  return `request failed with status ${res.status}`;
-}

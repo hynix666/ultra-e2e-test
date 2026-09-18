@@ -81,6 +81,39 @@ func TestTaskLifecycle(t *testing.T) {
 	}
 }
 
+func TestEveryErrorIsJSONIncludingTheRoutersOwn(t *testing.T) {
+	t.Parallel()
+
+	server := newServer(t)
+
+	// The mux answers these itself; left alone it would answer in plain text.
+	for _, tt := range []struct{ method, path string }{
+		{http.MethodPost, "/healthz"},
+		{http.MethodDelete, "/api/tasks"},
+		{http.MethodPut, "/api/tasks/id-1"},
+		{http.MethodGet, "/api/tasks/id-1/status"},
+		{http.MethodGet, "/api"},
+		{http.MethodGet, "/api/tasks/"},
+	} {
+		t.Run(tt.method+" "+tt.path, func(t *testing.T) {
+			t.Parallel()
+
+			status, body := do(t, server, tt.method, tt.path, "")
+			var decoded struct {
+				Error string `json:"error"`
+			}
+			if err := json.Unmarshal([]byte(body), &decoded); err != nil || decoded.Error == "" {
+				t.Fatalf("%d body %q is not a JSON error", status, body)
+			}
+		})
+	}
+
+	// HEAD is answered wherever GET is, as HTTP requires.
+	if status, _ := do(t, server, http.MethodHead, "/healthz", ""); status != http.StatusOK {
+		t.Fatalf("HEAD /healthz = %d, want 200", status)
+	}
+}
+
 func TestRequestsAreValidatedAtTheBoundary(t *testing.T) {
 	t.Parallel()
 
