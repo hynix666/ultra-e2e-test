@@ -14,6 +14,8 @@ test("the ruleset requires pull requests and the verify check from GitHub Action
   assert.deepEqual(rule("required_status_checks").parameters.required_status_checks, [{ context: "verify", integration_id: ACTIONS_APP_ID }]);
   assert.equal(rule("required_status_checks").parameters.strict_required_status_checks_policy, true);
   assert.deepEqual(rule("pull_request").parameters.allowed_merge_methods, ["squash"]);
+  // GitHub added this parameter defaulted on; unset, it would block a sole maintainer's own merges.
+  assert.equal(rule("pull_request").parameters.require_extra_approval_for_unattributed_changes, false);
   assert.ok(rule("non_fast_forward") && rule("deletion"));
   assert.deepEqual(RULESET.bypass_actors, []);
   assert.deepEqual(RULESET.conditions.ref_name.include, ["~DEFAULT_BRANCH"]);
