@@ -14,7 +14,10 @@
  *   - A ruleset on the default branch: changes arrive by pull request, the `verify` check from GitHub
  *     Actions must pass on an up-to-date branch (ADR-0002), and nobody force-pushes or deletes it. No
  *     bypass, administrators included. No approving review is required, so a sole maintainer can
- *     merge; raise it once there is a second.
+ *     merge; raise it once there is a second. The same goes for GitHub's newer "extra approval for
+ *     unattributed changes", which it turns on by default: a sole maintainer cannot approve their own
+ *     pull request, so a commit GitHub does not attribute to them (an agent co-author, an unlinked
+ *     email) would block their merge for good. It is set, explicitly, to off.
  *   - Dependabot alerts and security updates, and the private vulnerability reporting SECURITY.md links to.
  *   - Secret scanning and push protection. Free on public repositories; GitHub refuses them on a private
  *     repository without Advanced Security, and that is reported as unavailable rather than as a failure.
@@ -53,6 +56,8 @@ export const RULESET = {
         require_code_owner_review: false,
         require_last_push_approval: false,
         required_review_thread_resolution: false,
+        // Declared rather than left to GitHub's default, which changed underneath this script once.
+        require_extra_approval_for_unattributed_changes: false,
         allowed_merge_methods: ["squash"],
       },
     },

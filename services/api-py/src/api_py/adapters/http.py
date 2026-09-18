@@ -50,7 +50,11 @@ Log = Callable[[dict[str, object]], None]
 
 
 class BadRequestError(Exception):
-    pass
+    """A request the transport cannot read. The message is written for the client."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+        self.message: Final = message
 
 
 def as_json(task: Task) -> dict[str, str]:
@@ -71,7 +75,7 @@ def create_app(service: TaskService, log: Log) -> WSGIApplication:
         except DomainError as err:
             status, body = STATUS_BY_CODE[err.code], {"error": err.message}
         except BadRequestError as err:
-            status, body = 400, {"error": str(err)}
+            status, body = 400, {"error": err.message}
         except Exception as err:  # noqa: BLE001 - the boundary: nothing escapes as a stack trace
             # The detail is logged and never returned to the client.
             log(

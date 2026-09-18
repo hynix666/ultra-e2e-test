@@ -62,7 +62,7 @@ test("CLAUDE.md must be the import line and nothing else", (t) => {
   assert.match(failures(t, { "CLAUDE.md": `${IMPORT_TEXT}\nAlso: never run the tests.\n` }), /CLAUDE\.md` must be exactly/);
   assert.match(failures(t, { "CLAUDE.md": null }), /CLAUDE\.md` is missing/);
   // A Windows checkout writes CRLF; the file still says exactly the same thing.
-  assert.equal(checkDocs(fixture(t, { "CLAUDE.md": IMPORT_TEXT.replace("\n", "\r\n") })).ok, true);
+  assert.equal(checkDocs(fixture(t, { "CLAUDE.md": IMPORT_TEXT.replaceAll("\n", "\r\n") })).ok, true);
 });
 
 test("a vendor pointer that carries its own instructions fails", (t) => {
