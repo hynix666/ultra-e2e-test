@@ -26,10 +26,12 @@ permissions:
 jobs:
   publish:
     # workflow_run runs with this repository's permissions whatever triggered it, so it only proceeds
-    # for a successful push to the default branch — never for anything a pull request could start.
+    # for a successful push to this repository's default branch. The repository check matters: a fork
+    # can name its own branch `main`, so the branch name alone proves nothing.
     if: >-
       vars.MCP_PUBLISH_ENABLED == 'true' && (github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
       github.event.workflow_run.head_branch == github.event.repository.default_branch))
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -38,33 +40,38 @@ jobs:
       packages: write
       id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Find the version to publish
+      # The release is found through the API and only its tag is checked out — never the commit the
+      # workflow_run event names. A tag can be created only by someone with write access; the event's
+      # commit is exactly what a privileged job must not run on trust (Scorecard: Dangerous-Workflow).
+      - name: Find the release to publish
         id: version
         env:
+          GH_TOKEN: ${{ github.token }}
           INPUT: ${{ inputs.version }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
           if [ -n "$INPUT" ]; then
-            VERSION="${INPUT#v}"
-            if ! git rev-parse --verify --quiet "refs/tags/v$VERSION" > /dev/null; then
-              echo "::error::There is no tag v$VERSION. Publish a version that has been released."
+            TAG="v${INPUT#v}"
+            if ! gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+              echo "::error::There is no tag $TAG. Publish a version that has been released."
               exit 1
             fi
-            git checkout --quiet "v$VERSION"
           else
-            TAG="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
+            TAG="$(gh api "repos/$GITHUB_REPOSITORY/tags?per_page=100" \
+              --jq '[.[] | select(.commit.sha == env.SHA) | .name | select(startswith("v"))] | first // ""')"
             if [ -z "$TAG" ]; then
               echo "No release was created on this commit; nothing to publish."
               exit 0
             fi
-            VERSION="${TAG#v}"
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.version.outputs.tag != ''
+        with:
+          ref: refs/tags/${{ steps.version.outputs.tag }}
+          persist-credentials: false
 
       - name: Build and push the image
         if: steps.version.outputs.version != ''
