@@ -38,6 +38,12 @@ test("a dependency directory tracked below the root fails", (t) => {
   assert.match(failures(fixture(t, { "apps/web/node_modules/pkg/index.js": "" })), /under a `node_modules` directory/);
 });
 
+test("a build cache tracked anywhere fails, whatever produced it", (t) => {
+  // Committed once by a Python module whose .gitignore had no rules for it; a rule, not an incident.
+  assert.match(failures(fixture(t, { "services/api-py/src/__pycache__/x.pyc": "" })), /under a `__pycache__` directory/);
+  assert.match(failures(fixture(t, { ".pytest_cache/v/cache/lastfailed": "{}" })), /under a `.pytest_cache` directory/);
+});
+
 test("an oversized file fails", (t) => {
   assert.match(failures(fixture(t, { "blob.bin": Buffer.alloc(MAX_TRACKED_BYTES + 1) })), /blob\.bin` is 4\.0 MB/);
 });

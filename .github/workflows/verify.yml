@@ -39,6 +39,8 @@ jobs:
           node-version-file: .node-version
       - name: Repository hygiene
         run: node scripts/check-hygiene.mjs
+      - name: Documentation shape
+        run: node scripts/check-docs.mjs
       - name: Chassis tests
         run: node --test "test/*.test.mjs"
 
@@ -78,8 +80,22 @@ jobs:
         with:
           version: v2.13.2
           working-directory: services/api-go
-      - name: Container image builds
-        run: docker build --tag api-go:ci .
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: The task API contract
+        run: node ../../scripts/check-contract.mjs go-service
+      # Building an image proves little; this starts it and asks it the one question a load balancer will.
+      - name: Container image starts and answers
+        run: |
+          docker build --tag api-go:ci .
+          docker run --detach --name api-go --publish 8080:8080 api-go:ci
+          for _ in $(seq 1 30); do
+            if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
+            sleep 1
+          done
+          docker logs api-go
+          exit 1
 
   ts-service:
     runs-on: ubuntu-latest
@@ -98,8 +114,85 @@ jobs:
           cache-dependency-path: services/api-ts/package-lock.json
       - run: npm ci
       - run: npm run verify
-      - name: Container image builds
-        run: docker build --tag api-ts:ci .
+      - name: The task API contract
+        run: node ../../scripts/check-contract.mjs ts-service
+      # Building an image proves little; this starts it and asks it the one question a load balancer will.
+      - name: Container image starts and answers
+        run: |
+          docker build --tag api-ts:ci .
+          docker run --detach --name api-ts --publish 8080:8080 api-ts:ci
+          for _ in $(seq 1 30); do
+            if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
+            sleep 1
+          done
+          docker logs api-ts
+          exit 1
+
+  mcp-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/mcp-server
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: services/mcp-server/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - name: Container image starts and speaks MCP
+        run: |
+          docker build --tag mcp-server:ci .
+          request='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}'
+          reply="$(echo "$request" | timeout 60 docker run --rm -i mcp-server:ci)"
+          echo "$reply"
+          echo "$reply" | grep -q '"serverInfo"'
+
+  py-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/api-py
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          # The uv version is pinned once, in [tool.uv] required-version, which local uv enforces too.
+          version-file: services/api-py/pyproject.toml
+          enable-cache: true
+          cache-dependency-glob: services/api-py/uv.lock
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      # --locked refuses a lockfile that no longer matches pyproject.toml, as npm ci does; --frozen
+      # would install the stale lock without a word. Later steps use --frozen so nothing re-locks.
+      - run: uv sync --locked
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+      - run: uv run --frozen mypy
+      - run: uv run --frozen pytest
+      - run: uv run --frozen python scripts/check_boundaries.py
+      - name: The task API contract
+        run: node ../../scripts/check-contract.mjs py-service
+      # Building an image proves little; this starts it and asks it the one question a load balancer will.
+      - name: Container image starts and answers
+        run: |
+          docker build --tag api-py:ci .
+          docker run --detach --name api-py --publish 8080:8080 api-py:ci
+          for _ in $(seq 1 30); do
+            if curl --fail --silent --show-error localhost:8080/healthz; then exit 0; fi
+            sleep 1
+          done
+          docker logs api-py
+          exit 1
 
   web:
     runs-on: ubuntu-latest
@@ -116,6 +209,24 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+
+  ts-library:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: packages/ts-library
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+          cache-dependency-path: packages/ts-library/package-lock.json
       - run: npm ci
       - run: npm run verify
 
@@ -144,7 +255,10 @@ jobs:
       - actionlint
       - go-service
       - ts-service
+      - mcp-server
+      - py-service
       - web
+      - ts-library
       - architecture
     runs-on: ubuntu-latest
     timeout-minutes: 5

@@ -40,7 +40,8 @@ export function createHandler(service: TaskService, log: Log) {
 }
 
 async function route(service: TaskService, req: IncomingMessage, res: ServerResponse): Promise<void> {
-  const method = req.method ?? "GET";
+  // HEAD is answered wherever GET is, as HTTP requires; Node leaves the body off the response itself.
+  const method = req.method === "HEAD" ? "GET" : (req.method ?? "GET");
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
 
   if (path === "/healthz") {
@@ -89,10 +90,10 @@ async function readObject(req: IncomingMessage, allowed: readonly string[]): Pro
   return body as Record<string, unknown>;
 }
 
-/** A missing field reads as empty, which the domain rejects; a field of the wrong type is malformed. */
+/** A missing or null field reads as empty, which the domain rejects; a field of another type is malformed. */
 function optionalString(body: Record<string, unknown>, key: string): string {
   const value = body[key];
-  if (value === undefined) return "";
+  if (value === undefined || value === null) return "";
   if (typeof value !== "string") throw new BadRequest(`${key} must be a string`);
   return value;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorMessage, nextStatuses, parseTasks } from "./tasks.ts";
+import { nextStatuses, parseTasks } from "./model.ts";
 
 describe("nextStatuses", () => {
   it("offers exactly the moves the API accepts", () => {
@@ -19,12 +19,5 @@ describe("parseTasks", () => {
     expect(() => parseTasks({ tasks: [] })).toThrow(/list of tasks/);
     expect(() => parseTasks([null])).toThrow(/task 0 is not an object/);
     expect(() => parseTasks([{ id: "a", title: "x", status: "DONE" }])).toThrow(/known status/);
-  });
-});
-
-describe("errorMessage", () => {
-  it("prefers the service's message and falls back to the status", async () => {
-    expect(await errorMessage(new Response('{"error":"title must not be empty"}', { status: 422 }))).toBe("title must not be empty");
-    expect(await errorMessage(new Response("<html>", { status: 502 }))).toBe("request failed with status 502");
   });
 });

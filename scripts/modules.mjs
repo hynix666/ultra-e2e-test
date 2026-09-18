@@ -15,7 +15,10 @@ export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const MODULES = [
   { id: "go-service", dir: "services/api-go", toolchain: "go" },
   { id: "ts-service", dir: "services/api-ts", toolchain: "node" },
+  { id: "mcp-server", dir: "services/mcp-server", toolchain: "node" },
+  { id: "py-service", dir: "services/api-py", toolchain: "python" },
   { id: "web", dir: "apps/web", toolchain: "node" },
+  { id: "ts-library", dir: "packages/ts-library", toolchain: "node" },
   { id: "architecture", dir: "architecture", toolchain: "node" },
 ];
 
@@ -37,4 +40,4 @@ export function run(command, args, { cwd = ROOT, capture = false } = {}) {
   return { status: result.status ?? 1, stdout: result.stdout ?? "" };
 }
 
-export const available = (command) => run(command, ["version"], { capture: true }).status === 0;
+export const available = (command, args = ["version"]) => run(command, args, { capture: true }).status === 0;

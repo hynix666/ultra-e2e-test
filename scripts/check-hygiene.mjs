@@ -32,7 +32,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 export const REQUIRED_IGNORES = ["node_modules/", "dist/", "coverage/", ".env", ".env.*"];
 /** Below this the file was truncated, not edited. */
 export const MIN_RULES = 10;
-export const FORBIDDEN_TRACKED_DIRS = ["node_modules", ".venv", "venv"];
+export const FORBIDDEN_TRACKED_DIRS = ["node_modules", ".venv", "venv", "__pycache__", ".mypy_cache", ".pytest_cache", ".ruff_cache"];
 export const MAX_TRACKED_BYTES = 4 * 1024 * 1024;
 /** Read by tools that accept comments; every other .json must be strict JSON. */
 export const JSONC = /(^|\/)(tsconfig(\.[\w-]+)?\.json|devcontainer\.json)$|(^|\/)\.vscode\//;

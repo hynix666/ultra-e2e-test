@@ -34,6 +34,9 @@ jobs:
       contents: write
       pull-requests: write
       actions: write # dispatch verify on the release branch
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -53,3 +56,35 @@ jobs:
         run: |
           branch="$(jq -r '.headBranchName' <<< "$PR")"
           gh workflow run verify.yml --repo "$GITHUB_REPOSITORY" --ref "$branch"
+
+  # Publishes packages/ts-library at the version just released, with provenance. Opt-in: npm must trust
+  # this workflow first (packages/ts-library/README.md), so it runs only when NPM_PUBLISH_ENABLED is true.
+  # No npm token exists anywhere: id-token: write lets npm verify the workflow through OpenID Connect.
+  publish-library:
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true' && vars.NPM_PUBLISH_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/ts-library
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          registry-url: https://registry.npmjs.org
+      - name: npm supports trusted publishing
+        run: node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) { console.error("npm " + process.argv[1] + " is older than 11.5.1, which trusted publishing needs"); process.exit(1); }' "$(npm --version)"
+      - run: npm ci
+      - name: Set the version from the release tag
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: npm version "${TAG#v}" --no-git-tag-version
+      - run: npm publish

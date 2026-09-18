@@ -29,3 +29,10 @@ architecture/png/
 Thumbs.db
 .idea/
 *.swp
+
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

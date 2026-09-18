@@ -6,6 +6,12 @@ Report it privately: **[Report a vulnerability](https://github.com/hynix666/ultr
 
 Please do not open a public issue or pull request for it. Include the affected file, endpoint or command, how to reproduce it, and what an attacker gains. No response time is promised until this file states one.
 
+### What happens after you report
+
+1. A maintainer acknowledges the report, confirms whether it is a vulnerability, and works out which versions it affects.
+2. The fix is prepared privately in the advisory's temporary fork, released, and the advisory is published, crediting you unless you ask not to be named.
+3. Until then, please keep the details confidential, and test only against systems you own.
+
 ## Supported versions
 
 Fixes land on `main`. Only the latest release receives them.

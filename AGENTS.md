@@ -17,6 +17,7 @@ Each of these fails `scripts/check-hygiene.mjs` or a module's own checks. Do not
 - **Least privilege in workflows.** Top-level `permissions: contents: read`, widened per job only where needed. Every job has `timeout-minutes`. Event values such as branch names reach shell scripts through `env:`, never as `${{ }}` inside `run:`.
 - **Repository shape.** No `.env` files, no dependency directories, no file over 4 MB, no invalid JSON, nothing both tracked and ignored.
 - **Independent modules.** Every module has its own manifest, lockfile and CI job. Never import across module directories ([ADR-0004](docs/adr/0004-independent-modules.md)).
+- **One set of instructions.** This file is the only one. `CLAUDE.md`, `GEMINI.md` and `.github/copilot-instructions.md` point here and carry no rules of their own; files under `.github/prompts/` and `.github/agents/` wrap a task and defer to this file; no `AGENT.md` and no case variants of these names. Every document under `docs/` is linked from the index beside it, and every relative link resolves. `scripts/check-docs.mjs` enforces all of it ([ADR-0006](docs/adr/0006-one-set-of-agent-instructions.md), [ADR-0009](docs/adr/0009-where-agent-adapters-and-skills-live.md)).
 
 ## Architecture
 
@@ -30,15 +31,37 @@ Services keep domain, use cases, adapters and a composition root, with dependenc
 
 `src/domain` is pure: no `node:` imports and no packages. `src/application` depends on the domain and its own ports, `src/adapters` implement them, and `src/main.ts` is the composition root. `scripts/check-boundaries.mjs` enforces it. Node runs the sources directly, so use only erasable TypeScript syntax: no `enum`, `namespace` or constructor parameter properties.
 
+### services/api-py
+
+`src/api_py/domain` is pure: no I/O, no clock, no randomness, and no imports beyond the pure standard-library modules the checker allows. `src/api_py/application` holds the use cases and its ports as `Protocol` classes; `src/api_py/adapters` holds the WSGI transport and the store; `src/api_py/main.py` is the composition root. `scripts/check_boundaries.py` parses every file with `ast` and enforces it. Run `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` (strict) and `uv run pytest` inside the module, or `node scripts/verify.mjs py-service` from the root. Dependencies are managed by uv: never edit `uv.lock` by hand.
+
+### services/mcp-server
+
+The same layers as the services, with MCP as the transport: `src/domain` is pure, `src/application` holds the use cases behind the `TaskGateway` port, `src/adapters` holds the HTTP client and the MCP registration, and `src/main.ts` wires them. **Nothing writes to stdout** — it is the protocol channel. A failure the caller can act on is returned as `isError: true`, never thrown. Tools are tested through a real client over an in-memory transport pair. Follow the `add-mcp-tool` skill.
+
 ### apps/web
 
-API responses are validated in `src/lib/tasks.ts` before components use them. The dev server proxies `/api` to port 8080.
+Code flows one way: `src/lib` (shared) → `src/features/<name>` → `src/app`. A feature never imports another feature or `src/app`, and `src/app` uses a feature only through its `index.ts`; `scripts/check-boundaries.mjs` enforces it. A new capability is a new feature folder with its own `api.ts`, `model.ts` and `components/`. API responses are validated in the feature's `model.ts` before components use them. Component tests stub `fetch` and render with Testing Library in happy-dom. The dev server proxies `/api` to port 8080.
+
+### packages/ts-library
+
+Everything consumers may import is exported from `src/index.ts`; the `exports` map has a single entry, so nothing else is reachable. `isolatedDeclarations` requires explicit types on exports. `npm run verify` builds and then checks the packed tarball with publint and are-the-types-wrong — a change that breaks how the package resolves for consumers fails there, not after publishing. Versions come from release tags; never edit `version` in `package.json` by hand.
 
 ### architecture
 
 The LikeC4 model in `architecture/model/` describes the system. Update it in the same pull request as a structural change. Rules it must satisfy live in `architecture/rules.mjs`, each with a test showing it can fail.
 
-When both services exist, keep them behaviourally identical: the same routes, status codes and configuration variables.
+Every task service present — `api-go`, `api-ts`, `api-py` — answers the same routes with the same status codes and reads the same configuration variables. `scripts/check-contract.mjs` holds each one to the cases in `scripts/contract/tasks-api.json`; change the contract there first, then every service, never one service alone.
+
+## Skills
+
+Step-by-step procedures for recurring tasks live in `.claude/skills/<name>/SKILL.md`: recording a decision, and adding an endpoint or tool to each module present. Follow the matching skill instead of improvising the procedure. They are plain Markdown, so any assistant can read them from there; Claude Code also loads them by name. Keep them as real files, never symlinks: the repository must work in a Windows checkout.
+
+An assistant working in GitHub's cloud prepares its environment with `.github/workflows/copilot-setup-steps.yml`, which installs every module's dependencies the way `node scripts/setup.mjs` does locally.
+
+## Documentation
+
+Write instructions here, decisions in `docs/adr/`, and anything about one module in that module's README. Before adding a page under `docs/`, read [docs/README.md](docs/README.md): it is the index, and its rules say to revise the page that already covers the subject rather than adding a second one, and to add a new page to its index in the same change.
 
 ## Conventions
 

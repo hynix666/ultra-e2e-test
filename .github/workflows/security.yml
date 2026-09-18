@@ -1,8 +1,9 @@
-# Report-only secret scanning of commits with gitleaks.
+# Report-only security scans: gitleaks over commits, and known-vulnerability audits of every
+# dependency lockfile — npm, Go and uv.
 #
-# A FINDING does not fail the job: an untuned scanner that goes red on day one teaches everyone to
-# ignore it. The job DOES fail when the scan could not run, because a scanner that errored must not
-# read as "nothing found". Findings are written, redacted, to the job summary.
+# A FINDING does not fail a job: an untuned scanner that goes red on day one teaches everyone to
+# ignore it. A job DOES fail when its scan could not run, because a scanner that errored must not
+# read as "nothing found". Findings are written to the job summary.
 #
 # GitHub secret scanning and push protection are the blocking layer (SECURITY.md); this is the
 # second opinion that also reads history.
@@ -68,3 +69,103 @@ jobs:
               jq -r '.[] | "| \(.RuleID) | \(.File) | \(.StartLine) | \(.Commit[0:7]) |"' gitleaks.json | head -100
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # Every npm lockfile in the repository, found from git rather than listed, so a module added or removed
+  # changes what is audited without editing this file. `npm audit` reads the lockfile; nothing installs.
+  npm-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+      - name: npm audit (report-only)
+        run: |
+          locks="$(git ls-files '*package-lock.json')"
+          if [ -z "$locks" ]; then echo "### npm audit: no npm lockfiles" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          failed=0
+          for lock in $locks; do
+            dir="$(dirname "$lock")"
+            (cd "$dir" && npm audit --json > "$RUNNER_TEMP/audit.json" 2> /dev/null) || true
+            node -e '
+              const { readFileSync, appendFileSync } = require("node:fs");
+              const out = (s) => appendFileSync(process.env.GITHUB_STEP_SUMMARY, s + "\n");
+              let report = null;
+              try { report = JSON.parse(readFileSync(process.argv[1], "utf8")); } catch {}
+              // String concatenation, not template literals: shellcheck reads a dollar-brace inside
+              // this single-quoted script as a shell expansion that will never happen (SC2016).
+              if (!report?.metadata) { out("### npm audit could not run in " + process.argv[2]); process.exit(2); }
+              const v = report.metadata.vulnerabilities;
+              out("### npm audit " + process.argv[2] + ": " + v.total + " advisory(ies), report-only");
+              out("critical " + v.critical + " · high " + v.high + " · moderate " + v.moderate + " · low " + v.low);
+            ' "$RUNNER_TEMP/audit.json" "$dir" || failed=1
+          done
+          exit "$failed"
+
+  # govulncheck reports only vulnerabilities in code the service actually calls, not every advisory for
+  # a module it imports. `go run` downloads the pinned version through the Go checksum database.
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/api-go
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: services/api-go/go.mod
+          cache: false
+      - name: govulncheck (report-only)
+        run: |
+          set +e
+          go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./... > "$RUNNER_TEMP/govulncheck.txt" 2>&1
+          code=$?
+          set -e
+          {
+            if [ "$code" -eq 0 ]; then echo "### govulncheck: no reachable vulnerabilities"
+            elif [ "$code" -eq 3 ]; then echo "### govulncheck: reachable vulnerabilities found, report-only"
+            else echo "### govulncheck could not run (exit $code)"; fi
+            echo '```'
+            tail -n 60 "$RUNNER_TEMP/govulncheck.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ] && [ "$code" -ne 3 ]; then exit "$code"; fi
+
+  # pip-audit reads the exact versions uv.lock pins, development tools included, as npm audit does.
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/api-py
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version-file: services/api-py/pyproject.toml
+      - name: pip-audit (report-only)
+        run: |
+          uv export --frozen --format requirements-txt --no-emit-project --output-file "$RUNNER_TEMP/requirements.txt" --quiet
+          # pip-audit exits 1 both for findings and for failing to run, so the report decides: it is
+          # written only when the scan completed.
+          uvx pip-audit==2.10.1 --requirement "$RUNNER_TEMP/requirements.txt" --no-deps --disable-pip \
+            --progress-spinner off --format json --output "$RUNNER_TEMP/pip-audit.json" || true
+          node -e '
+            const { readFileSync, appendFileSync } = require("node:fs");
+            const out = (s) => appendFileSync(process.env.GITHUB_STEP_SUMMARY, s + "\n");
+            let report = null;
+            try { report = JSON.parse(readFileSync(process.argv[1], "utf8")); } catch {}
+            // String concatenation, not template literals: see the npm audit job (SC2016).
+            if (!Array.isArray(report?.dependencies)) { out("### pip-audit could not run"); process.exit(2); }
+            const found = report.dependencies.flatMap((d) => (d.vulns || []).map((v) => d.name + " " + d.version + ": " + v.id));
+            out("### pip-audit: " + found.length + " advisory(ies) in " + report.dependencies.length + " packages, report-only");
+            for (const line of found) out("- " + line);
+          ' "$RUNNER_TEMP/pip-audit.json"

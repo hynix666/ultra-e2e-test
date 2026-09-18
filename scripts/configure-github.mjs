@@ -164,7 +164,9 @@ function main() {
   if (values["dry-run"]) {
     console.log(`configure-github: dry run for ${repo}; nothing is changed.\n`);
     for (const step of steps) {
-      const request = step.upsertRuleset ? `upsert repos/${repo}/rulesets` : step.upsertVariable ? `upsert repos/${repo}/actions/variables` : `${step.method} ${step.path}`;
+      const request = step.upsertRuleset ? `upsert repos/${repo}/rulesets`
+        : step.upsertVariable ? `upsert repos/${repo}/actions/variables`
+          : `${step.method} ${step.path}`;
       console.log(`  ${step.name}${step.optional ? " (optional)" : ""}\n    ${request}${step.body ? ` ${JSON.stringify(step.body)}` : ""}`);
     }
     return 0;

@@ -9,6 +9,7 @@
   "scripts": {
     "setup": "node scripts/setup.mjs",
     "verify": "node scripts/verify.mjs",
-    "check:hygiene": "node scripts/check-hygiene.mjs"
+    "check:hygiene": "node scripts/check-hygiene.mjs",
+    "check:docs": "node scripts/check-docs.mjs"
   }
 }
