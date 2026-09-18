@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 Released sections are written by release-please from Conventional Commit titles; do not edit them by hand.
 
+## [0.1.1](https://github.com/hynix666/ultra-e2e-test/compare/v0.1.0...v0.1.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **ci:** update from TEMPLATE1 v1.6.0 ([#14](https://github.com/hynix666/ultra-e2e-test/issues/14)) ([36fd642](https://github.com/hynix666/ultra-e2e-test/commit/36fd642bbcf0a9e183cb9ba99c38b409b2b7fcf9))
+
 ## 0.1.0 (2026-09-18)
 
 
