@@ -1,6 +1,6 @@
 # Growing the CI
 
-The workflows start simple on purpose: every job runs on every push, and one aggregate job, `verify`, is the only required check ([ADR-0002](adr/0002-one-required-check.md)). That stays right until CI is slow enough to matter. When it is, these are the changes that keep the single required check honest — and the traps each one sets.
+The workflows start simple on purpose: every job runs on every pull request and every push to `main`, and one aggregate job, `verify`, is the only required check ([ADR-0002](adr/0002-one-required-check.md)). That stays right until CI is slow enough to matter. When it is, these are the changes that keep the single required check honest — and the traps each one sets.
 
 ## Skip work a change cannot affect
 
@@ -21,7 +21,7 @@ A matrix job is one entry in the gate's `needs`: its result is the combined resu
 
 ## Turn on a merge queue
 
-Add `merge_group` to the triggers of `verify.yml` before you enable a merge queue. The queue runs required checks on its own temporary branch; a required check that does not run there leaves every queued pull request waiting.
+The queue runs required checks on its own temporary branch, and a required check that does not run there leaves every queued pull request waiting. `verify.yml` already runs on `merge_group`, so the one required check is ready. Any other workflow you make required needs the same trigger before you enable the queue.
 
 ## Move slow suites off the pull request
 

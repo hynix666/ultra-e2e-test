@@ -2,11 +2,12 @@
 
 ## The loop
 
-1. Branch from `main`.
-2. Make the change, with a test for any behaviour it adds or fixes.
-3. Run `node scripts/verify.mjs`. It runs the same checks as CI, so red here means red there.
-4. Open a pull request whose **title** follows [Conventional Commits](https://www.conventionalcommits.org/): `feat: add task search`, `fix(api-go): reject empty titles`. Pull requests are squash-merged, so the title becomes the commit message on `main`.
-5. The title's type sets the next version: `fix` makes a patch release, `feat` a minor release, and `!` or a `BREAKING CHANGE:` footer a major release.
+1. For a large or structural change, open an issue first and agree on the approach there. A pull request is a poor place to discover that the design was not wanted.
+2. Branch from `main`.
+3. Make the change, with a test for any behaviour it adds or fixes.
+4. Run `node scripts/verify.mjs`. It runs the same checks as CI, so red here means red there.
+5. Open a pull request whose **title** follows [Conventional Commits](https://www.conventionalcommits.org/): `feat: add task search`, `fix(api-go): reject empty titles`. Pull requests are squash-merged, so the title becomes the commit message on `main`.
+6. The title's type sets the next version: `fix` makes a patch release, `feat` a minor release, and `!` or a `BREAKING CHANGE:` footer a major release.
 
 Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test`.
 

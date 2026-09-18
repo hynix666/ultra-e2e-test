@@ -14,7 +14,9 @@
  *   6. No environment file is tracked. Real credentials live outside the repository.
  *   7. Once template/ is gone, no template marker line survives.
  *   8. Workflows and local actions pin every third-party action to a full commit SHA; every
- *      workflow declares `permissions:` and every job a `timeout-minutes`.
+ *      workflow declares `permissions:` and every job a `timeout-minutes`; a step that starts a
+ *      detached container removes it with a `trap` on exit, or on a reused self-hosted runner the
+ *      container outlives the job and keeps its name and port from the next run.
  *   9. Every job in verify.yml is listed under the aggregate `verify` job's `needs`. A job left out
  *      still runs and still shows red, but no longer blocks a merge — and nothing says so.
  *  10. No tracked source or config file contains a raw control character. A raw NUL makes git treat
@@ -46,6 +48,7 @@ const ENV_EXAMPLE = /(^|\/)\.env\.example$/;
 const WORKFLOW = /^\.github\/(workflows\/[^/]+|actions\/.+\/action)\.ya?ml$/;
 const USES = /^\s*(?:-\s*)?uses:\s*["']?([^\s"'#]+)/;
 const PINNED = /^[^@\s]+@[0-9a-f]{40}$/;
+const DETACHED = /\bdocker run\b(?=.*\s--detach\b)(?=.*\s--name[ =]([\w.-]+))/;
 
 export const containsDir = (path, dir) => path === dir || path.startsWith(`${dir}/`) || path.includes(`/${dir}/`);
 export const ignoreRules = (text) => text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "" && !l.startsWith("#"));
@@ -73,6 +76,14 @@ export function checkWorkflow(path, text) {
     const ref = USES.exec(line)?.[1];
     if (ref === undefined || ref.startsWith("./") || ref.startsWith("docker://")) return;
     if (!PINNED.test(ref)) problems.push(`${path}:${i + 1} uses \`${ref}\`, which is not pinned to a 40-character commit SHA.`);
+  });
+  lines.forEach((line, i) => {
+    const name = DETACHED.exec(line)?.[1];
+    if (name === undefined) return;
+    let step = i;
+    while (step > 0 && !/^\s*- /.test(lines[step])) step--;
+    const trapped = lines.slice(step, i).some((l) => /\btrap\b/.test(l) && l.includes(`docker rm --force ${name}`));
+    if (!trapped) problems.push(`${path}:${i + 1} starts container \`${name}\` detached with no \`trap 'docker rm --force ${name}' EXIT\` before it.`);
   });
   if (!path.includes("/workflows/")) return problems;
 

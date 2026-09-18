@@ -83,6 +83,19 @@ test("a pinned workflow with permissions and timeouts passes, and a reusable cal
   assert.deepEqual(checkWorkflow(".github/workflows/ci.yml", text), []);
 });
 
+test("a step that starts a detached container must remove it with a trap first", () => {
+  const step = (...run) => ["jobs:", "  api:", "    steps:", "      - name: Container answers", "        run: |", ...run.map((l) => `          ${l}`)].join("\n");
+  const start = "docker run --detach --name api --publish 8080:8080 api:ci";
+  assert.match(checkWorkflow(".github/workflows/ci.yml", step(start)).join(""), /container `api` detached with no `trap/);
+  // A trap in an earlier step does not cover this one, and a trap for another container does not either.
+  const elsewhere = ["jobs:", "  api:", "    steps:", "      - run: trap 'docker rm --force api' EXIT", "      - run: |", `          ${start}`].join("\n");
+  assert.match(checkWorkflow(".github/workflows/ci.yml", elsewhere).join(""), /container `api`/);
+  assert.match(checkWorkflow(".github/workflows/ci.yml", step("trap 'docker rm --force web' EXIT", start)).join(""), /container `api`/);
+  const clean = (l) => !/container/.test(l);
+  assert.ok(checkWorkflow(".github/workflows/ci.yml", step("trap 'docker rm --force api > /dev/null 2>&1 || true' EXIT", start)).every(clean));
+  assert.ok(checkWorkflow(".github/workflows/ci.yml", step("docker run --rm -i api:ci")).every(clean));
+});
+
 test("a verify.yml job missing from the gate's needs fails", () => {
   const workflow = (needs) => [
     "permissions:", "  contents: read", "jobs:",

@@ -84,10 +84,11 @@ jobs:
           node-version-file: .node-version
       - name: npm audit (report-only)
         run: |
-          locks="$(git ls-files '*package-lock.json')"
-          if [ -z "$locks" ]; then echo "### npm audit: no npm lockfiles" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          # NUL-delimited, so a module path with a space in it stays one path.
+          mapfile -d '' locks < <(git ls-files -z '*package-lock.json')
+          if [ "${#locks[@]}" -eq 0 ]; then echo "### npm audit: no npm lockfiles" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
           failed=0
-          for lock in $locks; do
+          for lock in "${locks[@]}"; do
             dir="$(dirname "$lock")"
             (cd "$dir" && npm audit --json > "$RUNNER_TEMP/audit.json" 2> /dev/null) || true
             node -e '

@@ -20,6 +20,8 @@ Released sections are written by release-please from Conventional Commit titles;
 
 ## [Unreleased]
 
+- Updated to [TEMPLATE1 v1.6.0](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.6.0).
+
 - Updated to [TEMPLATE1 v1.4.0](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.4.0).
 
 - Initialized from [TEMPLATE1 v1.3.1](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.3.1) with go-service, ts-service, py-service, mcp-server, web, ts-library, architecture, release, devcontainer.
