@@ -58,11 +58,12 @@ The tests drive the server through a real MCP client over an in-memory transport
 
 `.github/workflows/mcp-publish.yml` publishes the image to GitHub Container Registry and `server.json` to the [MCP Registry](https://registry.modelcontextprotocol.io), where clients discover servers. It uses no stored token: the image is pushed with the run's `GITHUB_TOKEN`, and the registry trusts GitHub's OIDC identity for the `io.github.<owner>/` namespace. The image is built for `linux/amd64` and `linux/arm64`, each on a native runner, and published as one tag, so it runs natively on an Apple Silicon Mac. The two builds also stay in the registry as `<version>-amd64` and `<version>-arm64`. In a private repository the arm64 runner uses paid Actions minutes once the free allowance is spent.
 
-It runs after each release that creates a version tag, and on demand with a version. One-time setup:
+It runs after each release that creates a version tag, and on demand with a version. Its first job runs in the GitHub environment `mcp-registry`, which GitHub creates on first use; a required reviewer or a limit on which refs may publish, set there, holds the whole publish. One-time setup:
 
 1. Release at least once, so a `v*` tag exists (the `release` feature does this; `gh release create` works too).
-2. Set the repository variable `MCP_PUBLISH_ENABLED=true`, then run the workflow once by hand with that version.
-3. Make the new container package public (the repository's *Packages* → package settings). The registry reads the image's `io.modelcontextprotocol.server.name` label to confirm you own it, which it cannot do for a private image.
+2. Set the repository variable `MCP_PUBLISH_ENABLED=true`, then run the workflow once by hand with that version. **This first run is expected to fail at its last step**, *Publish server.json to the MCP Registry*, with "is private or requires authentication". The images are pushed by then, but GitHub creates a new container package as private, and the registry only accepts an image anyone can pull.
+3. Make the package public: on its page, *Package settings* → *Danger Zone* → *Change visibility* → *Public*. It is `OWNER/ultra-e2e-test-mcp-server`, listed under the repository's *Packages*. The registry reads the image's `io.modelcontextprotocol.server.name` label to confirm you own it, which it cannot do for a private image. Check before going on: `curl -s -o /dev/null -w '%{http_code}\n' "https://ghcr.io/token?scope=repository:OWNER/ultra-e2e-test-mcp-server:pull"` prints `200` once the package is public, and `401` while it is still private.
+4. Re-run the failed job of that run (*Re-run failed jobs*). It publishes `server.json`, and every later release publishes on its own.
 
 `test/server-json.test.ts` keeps the manifest honest in the meantime: the image label must equal the server's `name`, and every advertised variable must be one `src/config.ts` reads, with the default it really uses.
 

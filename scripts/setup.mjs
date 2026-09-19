@@ -4,6 +4,9 @@
  * `uv sync --locked` for Python — each the command that installs exactly what the lockfile says, and
  * refuses when the lockfile no longer matches its manifest. (`uv sync --frozen` does not refuse.)
  *
+ * npm installs run with --ignore-scripts: no dependency's install script runs on this machine, which
+ * is how npm worms spread. The flag covers installation only; `npm run` and `npm pack` behave as usual.
+ *
  * Exit 0 all installed · 1 an install failed.
  */
 import { existsSync } from "node:fs";
@@ -17,7 +20,7 @@ for (const module of presentModules()) {
     ? ["go", ["mod", "download"]]
     : module.toolchain === "python"
     ? ["uv", existsSync(join(cwd, "uv.lock")) ? ["sync", "--locked"] : ["sync"]]
-    : ["npm", [existsSync(join(cwd, "package-lock.json")) ? "ci" : "install"]];
+    : ["npm", [existsSync(join(cwd, "package-lock.json")) ? "ci" : "install", "--ignore-scripts"]];
   console.log(`\n▶ ${module.id}: ${command} ${args.join(" ")}`);
   const { status } = run(command, args, { cwd });
   if (status !== 0) {

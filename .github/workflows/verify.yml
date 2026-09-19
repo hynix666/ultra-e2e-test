@@ -128,7 +128,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: services/api-ts/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npm run verify
       - name: The task API contract
         run: node ../../scripts/check-contract.mjs ts-service
@@ -160,7 +161,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: services/mcp-server/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npm run verify
       - name: Container image starts and speaks MCP
         run: |
@@ -227,7 +229,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: apps/web/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npm run verify
 
   ts-library:
@@ -245,7 +248,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: packages/ts-library/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npm run verify
 
   architecture:
@@ -263,7 +267,8 @@ jobs:
           node-version-file: .node-version
           cache: npm
           cache-dependency-path: architecture/package-lock.json
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - run: npm audit signatures
       - run: npm run verify
 
   verify:

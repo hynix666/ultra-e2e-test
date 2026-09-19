@@ -27,6 +27,8 @@ Released sections are written by release-please from Conventional Commit titles;
 
 ## [Unreleased]
 
+- Updated to [TEMPLATE1 v1.8.3](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.8.3).
+
 - Updated to [TEMPLATE1 v1.6.0](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.6.0).
 
 - Updated to [TEMPLATE1 v1.4.0](https://github.com/hynix666/TEMPLATE1/releases/tag/v1.4.0).

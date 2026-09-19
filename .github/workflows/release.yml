@@ -52,6 +52,9 @@ jobs:
   publish-library:
     needs: release-please
     if: needs.release-please.outputs.release_created == 'true' && vars.NPM_PUBLISH_ENABLED == 'true'
+    # A deployment environment: npm's trusted publisher can require it, and its settings can add a
+    # required reviewer or limit which refs may publish, with no change to this file.
+    environment: npm
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -71,7 +74,7 @@ jobs:
           registry-url: https://registry.npmjs.org
       - name: npm supports trusted publishing
         run: node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); if (a < 11 || (a === 11 && (b < 5 || (b === 5 && c < 1)))) { console.error("npm " + process.argv[1] + " is older than 11.5.1, which trusted publishing needs"); process.exit(1); }' "$(npm --version)"
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Set the version from the release tag
         env:
           TAG: ${{ needs.release-please.outputs.tag_name }}

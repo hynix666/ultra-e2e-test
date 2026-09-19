@@ -32,6 +32,9 @@ permissions:
 jobs:
   release:
     if: vars.MCP_PUBLISH_ENABLED == 'true'
+    # A deployment environment on the first job holds the whole publish: a required reviewer or a
+    # limit on which refs may publish, set in the environment's settings, applies before anything is built.
+    environment: mcp-registry
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:

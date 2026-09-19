@@ -96,6 +96,20 @@ test("a step that starts a detached container must remove it with a trap first",
   assert.ok(checkWorkflow(".github/workflows/ci.yml", step("docker run --rm -i api:ci")).every(clean));
 });
 
+test("an npm install without --ignore-scripts fails in a workflow and a Dockerfile; a comment does not", (t) => {
+  const workflow = (run) => ["jobs:", "  web:", "    steps:", `      - run: ${run}`, "      # npm ci runs here, as the comment says"].join("\n");
+  assert.match(checkWorkflow(".github/workflows/ci.yml", workflow("npm ci")).join(""), /ci\.yml:4 installs with npm without --ignore-scripts/);
+  assert.match(checkWorkflow(".github/workflows/ci.yml", workflow("npm install --save-dev x")).join(""), /without --ignore-scripts/);
+  assert.doesNotMatch(checkWorkflow(".github/workflows/ci.yml", workflow("npm ci --ignore-scripts")).join(""), /ignore-scripts/);
+  assert.doesNotMatch(checkWorkflow(".github/workflows/ci.yml", workflow("npm run build")).join(""), /ignore-scripts/);
+  const found = failures(fixture(t, {
+    "services/api/Dockerfile": "FROM node:24\nRUN npm ci --omit=dev\n",
+    "services/ok/Dockerfile": "FROM node:24\nRUN npm ci --omit=dev --ignore-scripts\n",
+  }));
+  assert.match(found, /services\/api\/Dockerfile:2 installs with npm without --ignore-scripts/);
+  assert.doesNotMatch(found, /services\/ok\/Dockerfile/);
+});
+
 test("a verify.yml job missing from the gate's needs fails", () => {
   const workflow = (needs) => [
     "permissions:", "  contents: read", "jobs:",
@@ -111,6 +125,33 @@ test("a raw control character in a source file fails, and an escape does not", (
   const found = failures(fixture(t, { "src/raw.mjs": "const sep = \"\u0000\";\n", "src/escaped.mjs": "const sep = \"\\u0000\";\n" }));
   assert.match(found, /raw control character\(s\) in src\/raw\.mjs:1\./);
   assert.doesNotMatch(found, /escaped\.mjs/);
+});
+
+test("an invisible or text-reordering character fails wherever it hides, and its escape does not", (t) => {
+  const found = failures(fixture(t, {
+    "AGENTS.md": "# Rules\n\nBe careful.\u{E0049}\u{E0067}\u{E006E}\u{E006F}\u{E0072}\u{E0065}\n",
+    "src/trojan.mjs": "const role = \"user\u202E \u2066// admin\u2069 \u2066\";\n",
+    "docs/zero.md": "pass\u200Bword\n",
+    "src/escaped.mjs": "const zwsp = \"\\u200B\";\n",
+    "docs/plain.md": "Café, naïve, 日本語 and ✓ are ordinary text.\n",
+  }));
+  assert.match(found, /invisible or text-reordering character\(s\) in AGENTS\.md:3, docs\/zero\.md:1, src\/trojan\.mjs:1\./);
+  assert.doesNotMatch(found, /escaped\.mjs|plain\.md/);
+});
+
+test("an absolute path into a home directory fails; relative paths, placeholders and URLs do not", (t) => {
+  // Assembled at run time: written out whole, these paths would make this file fail the rule it tests.
+  const users = "Us" + "ers";
+  const home = "ho" + "me";
+  const found = failures(fixture(t, {
+    "docs/mac.md": `Open /${users}/alice/project first.\n`,
+    "docs/windows.md": `Run C:\\${users}\\bob\\tools\\x.exe\n`,
+    "docs/forward.md": `cd C:/${users}/bob/src\n`,
+    "src/linux.sh": `cp x /${home}/carol/bin\n`,
+    "docs/fine.md": "Clone to ~/src or /Users/<you>/src; see https://example.com/home/page and /usr/local/bin.\n",
+  }));
+  assert.match(found, /home directory in docs\/forward\.md:1, docs\/mac\.md:1, docs\/windows\.md:1, src\/linux\.sh:1\./);
+  assert.doesNotMatch(found, /fine\.md/);
 });
 
 test("a repository with nothing tracked is fatal, not vacuously clean", (t) => {
