@@ -51,10 +51,15 @@ const CONTROL_CHAR = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 // Characters that render as nothing, or reorder what is shown, while a program — or an agent — still
 // reads them: zero-width characters and invisible operators, bidirectional controls (Trojan Source),
 // variation selectors, byte-order marks, invisible fillers, and the Unicode tag block, which carries
-// whole hidden sentences ("ASCII smuggling"). Written as escapes so this file contains none of them.
-export const INVISIBLE_CHAR = /[\u200B-\u200D\u2060-\u2064\u202A-\u202E\u2066-\u2069\uFE00-\uFE0F\uFEFF\u180E\u115F\u1160\u3164\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]/u;
-// An absolute path into one person's home directory: it names them, and works on no other machine.
-export const PERSONAL_PATH = /(?:^|[^\w.-])(?:\/Users\/|\/home\/|[A-Za-z]:[\\/]Users[\\/])[A-Za-z][\w.-]*/;
+// whole hidden sentences ("ASCII smuggling"). Emoji are the exception: the presentation selector after a
+// pictograph or keycap (as in a warning sign or a heart) and the joiner inside an emoji sequence are how
+// ordinary emoji are spelt, so only a selector or joiner standing anywhere else is flagged.
+// Written as escapes so this file contains none of them.
+export const INVISIBLE_CHAR = /[\u200B\u200C\u2060-\u2064\u202A-\u202E\u2066-\u2069\uFE00-\uFE0D\uFEFF\u180E\u115F\u1160\u3164\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]|(?<![\p{Extended_Pictographic}0-9#*])[\uFE0E\uFE0F]|(?<![\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F])\u200D|\u200D(?!\p{Extended_Pictographic})/u;
+// An absolute path into one person's home directory on macOS or Windows: it names them, and works on no
+// other machine. /home/<name> is not matched, because containers use it too (/home/node in a Dev Container
+// mount, /home/app in a compose file), and there it is configuration, not someone's machine.
+export const PERSONAL_PATH = /(?:^|[^\w.-])(?:\/Users\/|[A-Za-z]:[\\/]Users[\\/])[A-Za-z][\w.-]*/;
 const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
 const ENV_EXAMPLE = /(^|\/)\.env\.example$/;
 const WORKFLOW = /^\.github\/(workflows\/[^/]+|actions\/.+\/action)\.ya?ml$/;
