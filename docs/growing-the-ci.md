@@ -11,7 +11,7 @@ Filter inside a job instead, and decide what "skipped" means to the gate. The ga
 - **Keep the job, skip its steps.** A first step compares the changed files and every later step is conditional on its output. The job still reports `success`, and the gate needs no change. This is the simpler choice.
 - **Skip the job, and teach the gate.** Change the gate's check from `result == "success"` to accept `skipped` for the jobs you filter, by name. Never accept `skipped` for all of them: a job that is skipped because something upstream broke would then read as a pass.
 
-A job that decides what changed must see every file in the pull request. The files API paginates; codebase-memory-mcp's CI gates its heavy jobs on `gh api --paginate "repos/$REPO/pulls/$PR/files"` because the single-response diff endpoint gives up on large pull requests.
+A job that decides what changed must see every file in the pull request. The files API paginates, so read it with `gh api --paginate "repos/$REPO/pulls/$PR/files"`: the single-response diff endpoint gives up on large pull requests.
 
 ## Share steps between jobs
 

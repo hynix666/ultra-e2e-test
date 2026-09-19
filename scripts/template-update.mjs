@@ -10,8 +10,8 @@
  * itself is kept; where both changed the same lines, the conflict is left in the working tree like any
  * merge conflict, for a person to resolve.
  *
- *   node scripts/template-update.mjs --to v1.4.0              # apply, then review with git diff
- *   node scripts/template-update.mjs --to v1.4.0 --dry-run    # list what would change
+ *   node scripts/template-update.mjs --to vX.Y.Z              # apply, then review with git diff
+ *   node scripts/template-update.mjs --to vX.Y.Z --dry-run    # list what would change
  *
  * Needs git, network access to the template repository, and a clean working tree. Owner and repository
  * are read from the `origin` remote; --owner and --repo override them, and --template points at another
@@ -85,7 +85,7 @@ function commitTree(repo, from, message) {
 }
 
 export function update({ project, to, dryRun = false, template, owner, repo, log = console.log }) {
-  if (!VERSION.test(to ?? "")) throw new UpdateError(`--to must be a release tag such as v1.4.0, got "${to ?? ""}".`);
+  if (!VERSION.test(to ?? "")) throw new UpdateError(`--to must be a release tag such as v1.10.0, got "${to ?? ""}".`);
   if (git(project, ["status", "--porcelain"]).trim() !== "") throw new UpdateError("The working tree has uncommitted changes. Commit or stash them first, so the update can be reviewed and undone on its own.");
 
   const changelogPath = join(project, "CHANGELOG.md");
@@ -95,6 +95,11 @@ export function update({ project, to, dryRun = false, template, owner, repo, log
   if (origin.version === to) {
     log(`template-update: already at ${to}.`);
     return { status: "current" };
+  }
+  // Applied backwards, the difference would quietly undo later releases, and the recorded version (the
+  // highest one listed) would still claim the newer release. Updates only move forward.
+  if (compareVersions(to, origin.version) < 0) {
+    throw new UpdateError(`${to} is older than ${origin.version}, the release this project is on. template-update only moves forward.`);
   }
 
   const packageJson = join(project, "package.json");

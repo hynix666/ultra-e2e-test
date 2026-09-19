@@ -23,7 +23,7 @@ The same drift affects two neighbouring things. A skill under `.claude/skills/` 
 
 - **Maintain each vendor file separately** — honest about each tool's conventions, and the drift above is then a matter of discipline rather than of the build. Discipline is what this repository replaces with checks wherever it can.
 - **Generate the vendor files from `AGENTS.md`** — no drift, but a generated file must be regenerated and checked, and the content is identical for every vendor, so the generator would exist to copy one file into three.
-- **Nested `AGENTS.md` per module**, as react-starter-kit does — useful in a workspace where modules differ in tooling. Here each module already documents itself in its README, and a nested file is another copy that can contradict the root one.
+- **Nested `AGENTS.md` per module** — useful in a workspace where modules differ in tooling. Here each module already documents itself in its README, and a nested file is another copy that can contradict the root one.
 - **Leave the docs index to review** — rejected for the reason in the context: the page that stops being linked is exactly the page nobody notices.
 
 ## Consequences

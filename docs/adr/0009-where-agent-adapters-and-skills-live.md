@@ -4,10 +4,10 @@
 
 ## Context
 
-[ADR-0006](0006-one-set-of-agent-instructions.md) made `AGENTS.md` the only set of instructions and turned every other vendor file into a pointer. Since then the surface has grown, and three unrelated repositories reviewed for this round show where it is heading:
+[ADR-0006](0006-one-set-of-agent-instructions.md) made `AGENTS.md` the only set of instructions and turned every other vendor file into a pointer. Since then the surface has grown:
 
-- **Skills have no agreed home.** likec4 and multica keep them in the vendor-neutral `.agents/skills/`; plane and ui-ux-pro-max-skill in `.claude/skills/`; strix and context7 in `skills/`. Claude Code loads `.claude/skills/`; other assistants read whatever they are pointed at.
-- **likec4 bridges the gap with symlinks** — canonical skills in `.agents/skills/`, each `.claude/skills/<name>` a tracked symlink — while its own policy forbids symlinks for instructions "because this repository has Windows CI and Windows contributors". On Windows, git checks a symlink out as a text file containing its target unless developer mode and `core.symlinks` are both on, so the skill silently disappears.
+- **Skills have no agreed home.** Projects keep them in the vendor-neutral `.agents/skills/`, in `.claude/skills/`, or in `skills/`. Claude Code loads `.claude/skills/`; other assistants read whatever they are pointed at.
+- **Symlinks are a common bridge** — canonical skills in `.agents/skills/`, each `.claude/skills/<name>` a tracked symlink. On Windows, git checks a symlink out as a text file containing its target unless developer mode and `core.symlinks` are both on, so the skill silently disappears.
 - **Copilot has its own customization directories**: `.github/agents/*.agent.md` and `.github/prompts/*.prompt.md`, selected by frontmatter. A file there is a second place instructions can accumulate.
 - **Cloud agents need an environment.** GitHub's Copilot coding agent prepares its checkout with a workflow job named `copilot-setup-steps`; without one it starts with no dependencies installed and cannot run `verify`.
 - **Filename mistakes are silent.** A case-insensitive filesystem tracks `agents.md` happily; the singular `AGENT.md` is a name some tools once looked for. Either one holds instructions nothing loads.

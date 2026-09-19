@@ -7,8 +7,7 @@ description: Bring changes from a newer ultra-e2e-test release into this project
 
 This project was generated from ultra-e2e-test and keeps none of its history, so template changes cannot be merged directly. `scripts/template-update.mjs` recomputes them instead: it generates this project as the release it came from and as the newer release would, and applies the difference with a three-way merge.
 
-1. **Find where the project stands.** `CHANGELOG.md` has an `Initialized from` line, and an `Updated to` line for each update since; the highest version is the current one. Read the template's release notes from that version to the one you are moving to, and say in one line what the update brings.
-   If `scripts/template-update.mjs` is missing, the project predates v1.4.0: clone the template beside it and run that copy of the script with this project as the working directory. The update adds the script to the project.
+1. **Find where the project stands.** `CHANGELOG.md` has an `Initialized from` line, and an `Updated to` line for each update since; the highest version is the current one. Read the template's release notes from that version to the one you are moving to, and say in one line what the update brings. Updates only move forward; the script refuses a release older than the current one.
 2. **Start clean.** Commit or stash everything first; the script refuses a dirty working tree so the update can be reviewed and undone on its own. Work on a branch.
 3. **Look first.** `node scripts/template-update.mjs --to vX.Y.Z --dry-run` lists every file that would change. Files the project deleted are skipped and named.
 4. **Apply.** `node scripts/template-update.mjs --to vX.Y.Z`. Exit 0 applied cleanly, 1 applied with conflicts, 2 could not run. The owner and repository come from the `origin` remote; pass `--owner` and `--repo` if there is none.
