@@ -6,7 +6,7 @@
 
 The template claims its architecture is language-independent: dependencies point inward, the domain is pure, adapters are replaceable, and the layer rule is enforced by a check rather than by review. Until now that claim rested on two implementations — Go and TypeScript — which share more than they look like they do: both are statically typed, both build to a single artifact, both install from a lockfile in an ecosystem the template already knew how to drive.
 
-A claim proved twice inside one habitat is a weaker claim than it appears. Of the sources reviewed for this round, five were Python-first or Python-polyglot, and Python breaks several of the template's implicit assumptions: there is no compiler to fail the build, its packaging has changed repeatedly, and its usual web frameworks pull in a dependency tree before the first line of domain code is written.
+A claim proved twice inside one habitat is a weaker claim than it appears. Much of the work a project like this serves is written in Python, and Python breaks several of the template's implicit assumptions: there is no compiler to fail the build, its packaging has changed repeatedly, and its usual web frameworks pull in a dependency tree before the first line of domain code is written.
 
 Python's tooling has also stopped being contested. `uv` resolves and installs from a lockfile, ruff lints and formats, mypy type-checks, pytest runs the tests — the same four jobs the other two modules already do, under different names.
 
