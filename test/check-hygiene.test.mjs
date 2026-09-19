@@ -134,24 +134,30 @@ test("an invisible or text-reordering character fails wherever it hides, and its
     "docs/zero.md": "pass\u200Bword\n",
     "src/escaped.mjs": "const zwsp = \"\\u200B\";\n",
     "docs/plain.md": "Café, naïve, 日本語 and ✓ are ordinary text.\n",
+    // Emoji spelt with a presentation selector, a keycap, a skin tone and joiners are ordinary text too.
+    "docs/emoji.md": "\u26A0\uFE0F Read first. Made with \u2764\uFE0F. Step 1\uFE0F\u20E3. \u{1F469}\u{1F3FD}\u200D\u{1F4BB} and \u{1F468}\u200D\u{1F469}\u200D\u{1F467} wrote it.\n",
+    // A selector or joiner outside an emoji is not.
+    "docs/stray-selector.md": "admin\uFE0F\n",
+    "docs/stray-joiner.md": "pass\u200Dword\n",
   }));
-  assert.match(found, /invisible or text-reordering character\(s\) in AGENTS\.md:3, docs\/zero\.md:1, src\/trojan\.mjs:1\./);
-  assert.doesNotMatch(found, /escaped\.mjs|plain\.md/);
+  assert.match(found, /invisible or text-reordering character\(s\) in AGENTS\.md:3, docs\/stray-joiner\.md:1, docs\/stray-selector\.md:1, docs\/zero\.md:1, src\/trojan\.mjs:1\./);
+  assert.doesNotMatch(found, /escaped\.mjs|plain\.md|emoji\.md/);
 });
 
-test("an absolute path into a home directory fails; relative paths, placeholders and URLs do not", (t) => {
+test("an absolute path into a home directory fails; container paths, placeholders and URLs do not", (t) => {
   // Assembled at run time: written out whole, these paths would make this file fail the rule it tests.
   const users = "Us" + "ers";
-  const home = "ho" + "me";
   const found = failures(fixture(t, {
     "docs/mac.md": `Open /${users}/alice/project first.\n`,
     "docs/windows.md": `Run C:\\${users}\\bob\\tools\\x.exe\n`,
     "docs/forward.md": `cd C:/${users}/bob/src\n`,
-    "src/linux.sh": `cp x /${home}/carol/bin\n`,
     "docs/fine.md": "Clone to ~/src or /Users/<you>/src; see https://example.com/home/page and /usr/local/bin.\n",
+    // /home/<name> inside a container is configuration, not anyone's machine.
+    ".devcontainer/devcontainer.json": "{ \"remoteUser\": \"node\", \"mounts\": [\"source=cache,target=/home/node/.cache,type=volume\"] }\n",
+    "compose.yml": "services:\n  app:\n    volumes: [\"./data:/home/app/data\"]\n",
   }));
-  assert.match(found, /home directory in docs\/forward\.md:1, docs\/mac\.md:1, docs\/windows\.md:1, src\/linux\.sh:1\./);
-  assert.doesNotMatch(found, /fine\.md/);
+  assert.match(found, /home directory in docs\/forward\.md:1, docs\/mac\.md:1, docs\/windows\.md:1\./);
+  assert.doesNotMatch(found, /fine\.md|devcontainer\.json|compose\.yml/);
 });
 
 test("a repository with nothing tracked is fatal, not vacuously clean", (t) => {
