@@ -1,5 +1,6 @@
 /**
- * The whole check, locally, running what CI runs.
+ * Every module's checks, locally, as CI runs them. Workflow linting, image builds and the security scans
+ * run only in CI.
  *
  *   node scripts/verify.mjs                  # the chassis and every module present
  *   node scripts/verify.mjs go-service web   # the chassis and only the modules named

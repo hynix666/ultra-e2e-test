@@ -4,7 +4,7 @@ Instructions for coding agents working in this repository. `CLAUDE.md` imports t
 
 ## Verify, then report exactly what ran
 
-- `node scripts/verify.mjs` is the whole check and runs what CI runs. For a change confined to one module, `node scripts/verify.mjs <module>` runs the chassis and that module.
+- `node scripts/verify.mjs` runs every module's checks the way CI does. actionlint, zizmor, container image builds and the security scans run only in CI, so check the pull request's results as well. For a change confined to one module, `node scripts/verify.mjs <module>` runs the chassis and that module.
 - Say which commands you ran and what they showed. Never imply verification you did not perform.
 - A check that could not run is a failure to report, not a pass.
 

@@ -132,7 +132,7 @@ function command(id, dir, scratch) {
     return build.status === 0 ? [binary, []] : null;
   }
   if (id === "ts-service") return ["node", ["src/main.ts"]];
-  return ["uv", ["run", "--frozen", "python", "-m", "api_py.main"]];
+  return ["uv", ["run", "--frozen", "--directory", "src", "python", "-m", "api_py.main"]];
 }
 
 function stop(child) {

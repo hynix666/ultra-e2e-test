@@ -10,8 +10,8 @@
  *   src/main.ts and src/config.ts are the composition root and may import anything
  *   any other file under src/ belongs to no layer, and fails
  *
- * Adapted from NexusPrompt's check-boundaries.mjs. Specifiers are read with a regular expression, not
- * a parser: static import/export-from, side-effect imports and dynamic import() with a string literal.
+ * Specifiers are read with a regular expression, not a parser: static import/export-from, side-effect
+ * imports and dynamic import() with a string literal.
  * An import-shaped string inside a comment can raise a false alarm; nothing makes it miss a real import.
  *
  *   node scripts/check-boundaries.mjs
