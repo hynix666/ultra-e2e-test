@@ -15,7 +15,7 @@ Allowed types: `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`
 
 - **`verify` must pass.** It is the only required check; see [ADR-0002](docs/adr/0002-one-required-check.md).
 - **Third-party actions are pinned to a commit SHA**, and every workflow declares its permissions and job timeouts.
-- **Nothing that does not belong gets tracked:** no `.env` files, no dependency directories, no invalid JSON, no file over 4 MB.
+- **Nothing that does not belong gets tracked:** no `.env` files, no dependency directories, no invalid JSON, no file over 4 MB, no invisible characters and no paths into a home directory.
 - **Architecture boundaries hold.** Each service checks its own import rules; see [ADR-0005](docs/adr/0005-layered-services-with-enforced-boundaries.md).
 
 ## Architecture decisions

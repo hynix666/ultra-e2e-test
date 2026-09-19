@@ -16,11 +16,16 @@
  *   8. Workflows and local actions pin every third-party action to a full commit SHA; every
  *      workflow declares `permissions:` and every job a `timeout-minutes`; a step that starts a
  *      detached container removes it with a `trap` on exit, or on a reused self-hosted runner the
- *      container outlives the job and keeps its name and port from the next run.
+ *      container outlives the job and keeps its name and port from the next run. Every npm install in a
+ *      workflow, local action or Dockerfile passes --ignore-scripts: a dependency's install script is
+ *      how npm worms run code on the machine that installs them.
  *   9. Every job in verify.yml is listed under the aggregate `verify` job's `needs`. A job left out
  *      still runs and still shows red, but no longer blocks a merge — and nothing says so.
  *  10. No tracked source or config file contains a raw control character. A raw NUL makes git treat
  *      the whole file as binary: its diffs collapse to "Bin", so the change is never reviewed.
+ *  11. No tracked source or config file contains an invisible or text-reordering character. A human
+ *      reviewer sees nothing where an agent reads a hidden instruction, or code runs other than shown.
+ *  12. No tracked source or config file holds an absolute path into someone's home directory.
  *
  *   node scripts/check-hygiene.mjs
  *
@@ -40,15 +45,31 @@ export const MAX_TRACKED_BYTES = 4 * 1024 * 1024;
 export const JSONC = /(^|\/)(tsconfig(\.[\w-]+)?\.json|devcontainer\.json)$|(^|\/)\.vscode\//;
 export const MARKER = /ultra:(?:begin|end)\s+[a-z0-9-]+/;
 
-const TEXT_SOURCE = /\.(mjs|cjs|js|jsx|ts|tsx|mts|go|ya?ml|json|md|c4|css|html)$/;
+const TEXT_SOURCE = /\.(mjs|cjs|js|jsx|ts|tsx|mts|go|py|toml|sh|ya?ml|json|md|c4|css|html)$/;
 // Tab, LF and CR are the only C0 characters text needs; anything else belongs in an escape.
 const CONTROL_CHAR = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
+// Characters that render as nothing, or reorder what is shown, while a program — or an agent — still
+// reads them: zero-width characters and invisible operators, bidirectional controls (Trojan Source),
+// variation selectors, byte-order marks, invisible fillers, and the Unicode tag block, which carries
+// whole hidden sentences ("ASCII smuggling"). Written as escapes so this file contains none of them.
+export const INVISIBLE_CHAR = /[\u200B-\u200D\u2060-\u2064\u202A-\u202E\u2066-\u2069\uFE00-\uFE0F\uFEFF\u180E\u115F\u1160\u3164\u{E0000}-\u{E007F}\u{E0100}-\u{E01EF}]/u;
+// An absolute path into one person's home directory: it names them, and works on no other machine.
+export const PERSONAL_PATH = /(?:^|[^\w.-])(?:\/Users\/|\/home\/|[A-Za-z]:[\\/]Users[\\/])[A-Za-z][\w.-]*/;
 const ENV_FILE = /(^|\/)\.env(\.[^/]*)?$/;
 const ENV_EXAMPLE = /(^|\/)\.env\.example$/;
 const WORKFLOW = /^\.github\/(workflows\/[^/]+|actions\/.+\/action)\.ya?ml$/;
 const USES = /^\s*(?:-\s*)?uses:\s*["']?([^\s"'#]+)/;
 const PINNED = /^[^@\s]+@[0-9a-f]{40}$/;
 const DETACHED = /\bdocker run\b(?=.*\s--detach\b)(?=.*\s--name[ =]([\w.-]+))/;
+const NPM_INSTALL = /\bnpm\s+(?:ci|install|i)\b/;
+
+/** Rule 8, installs: npm never runs a dependency's install scripts in CI or an image build. */
+export function checkInstalls(path, text) {
+  return text.split(/\r?\n/).flatMap((line, i) =>
+    !/^\s*#/.test(line) && NPM_INSTALL.test(line) && !line.includes("--ignore-scripts")
+      ? [`${path}:${i + 1} installs with npm without --ignore-scripts, so any dependency's install script runs.`]
+      : []);
+}
 
 export const containsDir = (path, dir) => path === dir || path.startsWith(`${dir}/`) || path.includes(`/${dir}/`);
 export const ignoreRules = (text) => text.split(/\r?\n/).map((l) => l.trim()).filter((l) => l !== "" && !l.startsWith("#"));
@@ -85,6 +106,7 @@ export function checkWorkflow(path, text) {
     const trapped = lines.slice(step, i).some((l) => /\btrap\b/.test(l) && l.includes(`docker rm --force ${name}`));
     if (!trapped) problems.push(`${path}:${i + 1} starts container \`${name}\` detached with no \`trap 'docker rm --force ${name}' EXIT\` before it.`);
   });
+  problems.push(...checkInstalls(path, text));
   if (!path.includes("/workflows/")) return problems;
 
   if (!lines.some((l) => l.startsWith("permissions:"))) {
@@ -210,6 +232,7 @@ export function checkRepoHygiene(root = process.cwd()) {
   }
 
   for (const path of present.filter((p) => WORKFLOW.test(p))) failures.push(...checkWorkflow(path, read(path)));
+  for (const path of present.filter((p) => /(^|\/)Dockerfile$/.test(p))) failures.push(...checkInstalls(path, read(path)));
   const gate = ".github/workflows/verify.yml";
   if (present.includes(gate)) failures.push(...checkGate(gate, read(gate)));
 
@@ -220,6 +243,22 @@ export function checkRepoHygiene(root = process.cwd()) {
   }
   if (withControl.length > 0) {
     failures.push(`raw control character(s) in ${withControl.join(", ")}. Write them as escapes such as \\u0000: the value is the same, and the file stays text to git, grep and review.`);
+  }
+
+  const withInvisible = [];
+  const withHomePath = [];
+  for (const path of present.filter((p) => TEXT_SOURCE.test(p))) {
+    const lines = read(path).split("\n");
+    const invisible = lines.findIndex((l) => INVISIBLE_CHAR.test(l));
+    if (invisible !== -1) withInvisible.push(`${path}:${invisible + 1}`);
+    const home = lines.findIndex((l) => PERSONAL_PATH.test(l));
+    if (home !== -1) withHomePath.push(`${path}:${home + 1}`);
+  }
+  if (withInvisible.length > 0) {
+    failures.push(`invisible or text-reordering character(s) in ${withInvisible.join(", ")}. A reviewer cannot see them and an agent still reads them; delete them, or write them as escapes where one is really meant.`);
+  }
+  if (withHomePath.length > 0) {
+    failures.push(`absolute path(s) into a home directory in ${withHomePath.join(", ")}. Use a path relative to the repository, or a placeholder such as \`~\` or \`<you>\`.`);
   }
 
   return { ok: failures.length === 0, failures, trackedCount: tracked.length, ruleCount: rules.length };
