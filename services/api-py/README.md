@@ -10,10 +10,10 @@ The task API in Python: the same routes, the same status codes and the same conf
 
 ```bash
 uv sync
-uv run python -m api_py.main     # PORT=8080 by default
+uv run --directory src python -m api_py.main     # PORT=8080 by default
 ```
 
-The transport is a plain WSGI application, so production is a deployment choice rather than a dependency: `uv run gunicorn 'api_py.main:app'`, waitress on Windows, or anything else that speaks WSGI. The development server above is the standard library's and is fine for local work and tests.
+The transport is a plain WSGI application, so production is a deployment choice rather than a dependency: `uv run gunicorn --pythonpath src 'api_py.main:app'`, waitress on Windows, or anything else that speaks WSGI. The development server above is the standard library's and is fine for local work and tests.
 
 | Variable | Default | Meaning |
 |---|---|---|

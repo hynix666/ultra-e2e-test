@@ -1,6 +1,6 @@
 ---
 mode: agent
-description: Run this repository's whole check and report exactly what ran, what passed, and what could not run.
+description: Run this repository's local checks and report exactly what ran, what passed, and what could not run.
 ---
 
 The rules for this repository are in [AGENTS.md](../../AGENTS.md); read it first and follow it. This prompt is the one procedure it asks for most often.

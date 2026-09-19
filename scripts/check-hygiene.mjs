@@ -1,9 +1,8 @@
 /**
  * Repository hygiene: the SHAPE of the repository, which no test of its content can see.
  *
- * Adapted from NexusPrompt's check:hygiene, written after its .gitignore was emptied by automated
- * commits three times and one of them tracked 3,677 dependency files in a single change. Every rule
- * here is one an ordinary build walks straight past:
+ * Each rule guards against a failure an ordinary build walks straight past — a .gitignore emptied by
+ * an automated commit, thousands of dependency files tracked in a single change:
  *
  *   1. .gitignore still carries the rules whose absence is expensive, and has not been truncated.
  *   2. Nothing under a dependency directory is tracked, at any depth: every module has its own.

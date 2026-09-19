@@ -20,7 +20,7 @@ npm run dev        # http://localhost:5173, with /api proxied to :8080
 npm run verify     # import boundaries, typecheck, Vitest, production build
 ```
 
-Start either service (`services/api-go` or `services/api-ts`) on port 8080 for the page to have data.
+Start one of this project's task services on port 8080 for the page to have data; the service's own README says how.
 
 ## Test
 

@@ -4,7 +4,7 @@ This is the only module that may import from every layer, and the only one that 
 environment or a random source. Everything below it receives what it needs.
 
 The development server is the standard library's. ``app`` is an ordinary WSGI application, so
-production deployment is ``gunicorn 'api_py.main:app'`` (or waitress on Windows) with no code change.
+production deployment is ``gunicorn --pythonpath src 'api_py.main:app'`` (or waitress on Windows) with no code change.
 """
 
 from __future__ import annotations
